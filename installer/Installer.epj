@@ -1065,6 +1065,14 @@
                      ]
                   },
                   {
+                     "Folder" : "Sandbox",
+                     "Files" : [
+                        "../samples/eC/Sandbox/README.md",
+                        "../samples/eC/Sandbox/Sandbox.ec",
+                        "../samples/eC/Sandbox/Sandbox.epj"
+                     ]
+                  },
+                  {
                      "Folder" : "neural",
                      "Files" : [
                         "../samples/eC/neural/neural.ec",
