@@ -1,0 +1,34 @@
+{
+   "Version" : 0.2,
+   "ModuleName" : "Sandbox",
+   "Options" : {
+      "Warnings" : "All",
+      "Debug" : true,
+      "Optimization" : "None",
+      "TargetType" : "Executable",
+      "TargetFileName" : "Sandbox",
+      "Libraries" : [
+         "ecereCOM"
+      ],
+      "Console" : true
+   },
+   "Configurations" : [
+      {
+         "Name" : "Debug"
+      },
+      {
+         "Name" : "Release",
+         "Options" : {
+            "Debug" : false,
+            "Optimization" : "Speed"
+         }
+      }
+   ],
+   "Files" : [
+      "Sandbox.ec"
+   ],
+   "ResourcesPath" : "",
+   "Resources" : [
+
+   ]
+}
