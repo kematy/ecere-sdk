@@ -21,7 +21,7 @@ DXF / API input
 - Bulge polylines, spline preview, block inserts, hatch boundaries
 - `VectorRenderer` fits and draws on an Ecere `Surface`
 
-### Phase 2 — DXF import (this branch)
+### Phase 2 — DXF import
 - `DXFReader.ec` reads ASCII DXF into `CADDocument`
 - Supported entities:
   - LINE, CIRCLE, ARC, ELLIPSE
@@ -30,6 +30,16 @@ DXF / API input
   - INSERT
   - BLOCK / ENDBLK
 - Demo: `samples/guiAndGfx/VectorDemo/` with `sample.dxf`
+
+### Phase 3 — DXF export
+- `DXFWriter.ec` writes ASCII DXF from `CADDocument`
+- Preserves layers, colors, block definitions, and the same entity subset as the reader
+- SPLINE and LEADER entities are exported as LWPOLYLINE approximations
+- Round-trip example:
+
+```sh
+./obj/debug.linux/VectorDemo sample.dxf --export roundtrip.dxf
+```
 
 Run the demo (after building the SDK):
 
@@ -44,10 +54,6 @@ On Windows, open `VectorDemo.epj` in the Ecere IDE or use the equivalent
 `epj2make` + `mingw32-make` flow from an SDK command prompt.
 
 ## Next phases
-
-### Phase 3 — DXF export
-- Write semantic entities back to ASCII DXF
-- Preserve layers, colors, block definitions
 
 ### Phase 4 — Interaction
 - Selection grips via `InteractionOverlay`

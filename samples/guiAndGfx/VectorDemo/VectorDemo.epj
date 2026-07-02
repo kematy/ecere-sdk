@@ -47,6 +47,7 @@
             "../../../ecere/src/gfx/vector/InteractionOverlay.ec",
             "../../../ecere/src/gfx/vector/CADDocument.ec",
             "../../../ecere/src/gfx/vector/DXFReader.ec",
+            "../../../ecere/src/gfx/vector/DXFWriter.ec",
             "../../../ecere/src/gfx/vector/Vector.ec"
          ]
       }

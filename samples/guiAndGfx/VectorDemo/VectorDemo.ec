@@ -2,9 +2,11 @@ import "ecere"
 import "Vector"
 import "VectorRenderer"
 
-// Vector / CAD demo: built-in shapes or load an ASCII DXF file from the command line.
+// Vector / CAD demo: load ASCII DXF, optionally export back to DXF.
 //   VectorDemo
 //   VectorDemo path/to/file.dxf
+//   VectorDemo path/to/file.dxf --export out.dxf
+//   VectorDemo --export out.dxf
 class VectorDemo : Window
 {
    text = "Ecere eC - Vector / CAD / DXF Demo";
@@ -38,19 +40,45 @@ class VectorDemo : Window
       document.CreateSpline(splinePoints, 4, 3, false, "OBJECTS");
       document.CreateText({ 20, 220, 0 }, { 20, 220, 0 }, "Hello", 12, "STANDARD", "ANNOTATION");
       document.RebuildSemanticDisplayLines();
-      sprintf(statusText, "Built-in demo: %d entities, %d display lines", document.entities.count, document.displayLines.count);
+   }
+
+   bool ExportDocument(const char * exportPath)
+   {
+      DXFWriter writer { };
+      if(writer.Save(document, exportPath))
+      {
+         sprintf(statusText, "Exported DXF: %s (%d entities)", exportPath, document.entities.count);
+         return true;
+      }
+      sprintf(statusText, "DXF export failed: %s", writer.GetLastError());
+      return false;
    }
 
    VectorDemo()
    {
+      GuiApplication app = (GuiApplication)__thisModule;
+      const char * inputPath = null;
+      const char * exportPath = null;
+      int c;
+
       statusText[0] = 0;
 
-      if(((GuiApplication)__thisModule).argc > 1)
+      for(c = 1; c < app.argc; c++)
       {
-         const char * path = ((GuiApplication)__thisModule).argv[1];
+         if(!strcmp(app.argv[c], "--export") && c + 1 < app.argc)
+         {
+            exportPath = app.argv[c + 1];
+            c++;
+         }
+         else if(!inputPath)
+            inputPath = app.argv[c];
+      }
+
+      if(inputPath)
+      {
          DXFReader reader { };
-         if(reader.Load(document, path))
-            sprintf(statusText, "Loaded DXF: %s (%d entities, %d display lines)", path, document.entities.count, document.displayLines.count);
+         if(reader.Load(document, inputPath))
+            sprintf(statusText, "Loaded DXF: %s (%d entities, %d display lines)", inputPath, document.entities.count, document.displayLines.count);
          else
          {
             BuildBuiltinDemo();
@@ -62,9 +90,22 @@ class VectorDemo : Window
          const char * samplePath = "sample.dxf";
          DXFReader reader { };
          if(reader.Load(document, samplePath))
-            sprintf(statusText, "Loaded %s (%d entities, %d display lines). Pass a .dxf path on the command line to open another file.", samplePath, document.entities.count, document.displayLines.count);
+            sprintf(statusText, "Loaded %s (%d entities, %d display lines)", samplePath, document.entities.count, document.displayLines.count);
          else
+         {
             BuildBuiltinDemo();
+            sprintf(statusText, "Built-in demo: %d entities, %d display lines", document.entities.count, document.displayLines.count);
+         }
+      }
+
+      if(exportPath)
+      {
+         char exportStatus[256];
+         if(ExportDocument(exportPath))
+            sprintf(exportStatus, " | Exported to %s", exportPath);
+         else
+            sprintf(exportStatus, " | Export failed");
+         strncat(statusText, exportStatus, sizeof(statusText) - strlen(statusText) - 1);
       }
    }
 

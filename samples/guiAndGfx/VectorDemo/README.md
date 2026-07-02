@@ -24,7 +24,8 @@ make -f VectorDemo.Makefile
 ```sh
 ./obj/debug.linux/VectorDemo
 ./obj/debug.linux/VectorDemo sample.dxf
-./obj/debug.linux/VectorDemo /path/to/your.dxf
+./obj/debug.linux/VectorDemo sample.dxf --export roundtrip.dxf
+./obj/debug.linux/VectorDemo --export exported.dxf
 ```
 
 On Windows, open `VectorDemo.epj` in the Ecere IDE or run `VectorDemo.exe` from the build output directory.

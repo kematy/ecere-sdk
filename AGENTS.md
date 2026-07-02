@@ -38,8 +38,9 @@ and using it to compile/run eC programs. Everything is driven by the top-level `
 - If a project's own `.ec`/`.c` files call libm directly (`sqrt`, `cos`, ...), add `"m"` to the
   project `Libraries` or linking fails with `undefined reference to 'sqrt'` even though ecere links libm.
 - Vector/CAD module: `ecere/src/gfx/vector/` (semantic entities -> display lines -> CAD document).
-  ASCII DXF import: `DXFReader.ec`. Roadmap: `docs/DXF-ROADMAP.md`.
+  ASCII DXF import: `DXFReader.ec`. ASCII DXF export: `DXFWriter.ec`. Roadmap: `docs/DXF-ROADMAP.md`.
   Runnable GUI example: `samples/guiAndGfx/VectorDemo/` (includes `sample.dxf`; pass another
-  `.dxf` path on the command line). Build via the `epj2make` + `make -f` flow above; needs an X display to run.
+  `.dxf` path on the command line, or use `--export out.dxf` for Phase 3 round-trip tests).
+  Build via the `epj2make` + `make -f` flow above; needs an X display to run.
 - GUI apps (`ecere-ide` and `guiAndGfx`/`3D` samples) need an X11 display (X11 + OpenGL/Mesa).
   They will not run in a headless shell; use a desktop/X display.
