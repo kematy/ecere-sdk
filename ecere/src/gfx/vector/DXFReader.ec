@@ -5,7 +5,7 @@ import "CADDocument"
 
 // Phase 2: ASCII DXF import into the semantic CAD model (CADDocument).
 // Supported entities: LINE, CIRCLE, ARC, ELLIPSE, LWPOLYLINE, POLYLINE/VERTEX,
-// TEXT, MTEXT, INSERT, BLOCK/ENDBLK (block definitions).
+// TEXT, MTEXT, INSERT, BLOCK/ENDBLK (block definitions), HATCH (solid/polyline boundary).
 public class DXFReader
 {
    CADDocument document;
@@ -13,6 +13,13 @@ public class DXFReader
    bool inBlockDefinition;
    bool inPolyline;
    PolylineEntity polylineEntity;
+   HatchEntity hatchEntity;
+   bool inHatch;
+   bool hatchCollectBoundary;
+   bool hatchGotSeed;
+   bool hatchHavePendingX;
+   double hatchSeedX, hatchSeedY, hatchSeedZ;
+   double hatchPendingX, hatchPendingY, hatchPendingZ;
    char layer[256];
    int color;
    char lastError[512];
@@ -134,6 +141,66 @@ public class DXFReader
       }
    }
 
+   void BeginHatch()
+   {
+      FinishHatch();
+      inHatch = true;
+      hatchCollectBoundary = hatchGotSeed = hatchHavePendingX = false;
+      hatchSeedX = hatchSeedY = hatchSeedZ = 0;
+      hatchPendingX = hatchPendingY = hatchPendingZ = 0;
+      hatchEntity = { };
+      hatchEntity.type = entityHatch;
+   }
+
+   void AddHatchBoundaryVertex(double x, double y, double z)
+   {
+      uint index;
+      VectorPoint * points;
+
+      if(!inHatch)
+         return;
+
+      index = hatchEntity.boundaryPointCount;
+      points = hatchEntity.boundaryPointCount ? new VectorPoint[hatchEntity.boundaryPointCount + 1] : new VectorPoint[1];
+      if(hatchEntity.boundaryPoints)
+      {
+         memcpy(points, hatchEntity.boundaryPoints, sizeof(VectorPoint) * hatchEntity.boundaryPointCount);
+         delete hatchEntity.boundaryPoints;
+      }
+      points[index] = { x, y, z };
+      hatchEntity.boundaryPoints = points;
+      hatchEntity.boundaryPointCount = index + 1;
+   }
+
+   void FinishHatch()
+   {
+      HatchEntity entity;
+      bool hadSeed;
+      if(inHatch)
+      {
+         if(hatchHavePendingX)
+         {
+            hatchHavePendingX = false;
+            AddHatchBoundaryVertex(hatchPendingX, hatchPendingY, hatchPendingZ);
+         }
+
+         hadSeed = hatchGotSeed;
+         entity = hatchEntity;
+         hatchEntity = { };
+         inHatch = hatchCollectBoundary = hatchGotSeed = false;
+
+         entity.seed = { hatchSeedX, hatchSeedY, hatchSeedZ };
+         if(entity.boundaryPointCount >= 3 || hadSeed)
+            AddToTarget(entity);
+         else
+         {
+            delete entity.boundaryPoints;
+            delete entity.name;
+            delete entity.hPattern;
+         }
+      }
+   }
+
    void FinalizeEntity(const char * entityType,
       double x1, double y1, double z1, double x2, double y2, double z2,
       double cx, double cy, double cz, double radius, double startAngle, double endAngle,
@@ -215,9 +282,11 @@ public class DXFReader
       blockName[0] = 0;
       lastError[0] = 0;
       document = target;
-      inBlockDefinition = inPolyline = false;
+      inBlockDefinition = inPolyline = inHatch = false;
       currentBlock = null;
       polylineEntity = { };
+      hatchEntity = { };
+      hatchCollectBoundary = hatchGotSeed = hatchHavePendingX = false;
 
       if(!document || !fileName || !fileName[0])
       {
@@ -241,6 +310,8 @@ public class DXFReader
             {
                if(!strcmp(entityType, "LWPOLYLINE") || !strcmp(entityType, "POLYLINE"))
                   FinishPolyline();
+               else if(!strcmp(entityType, "HATCH"))
+                  FinishHatch();
                else if(!strcmp(entityType, "ENDBLK"))
                   EndBlock();
                else
@@ -260,6 +331,7 @@ public class DXFReader
             else if(!strcmp(value, "ENDSEC"))
             {
                FinishPolyline();
+               FinishHatch();
                inEntities = inBlocks = false;
             }
             else if(!strcmp(value, "EOF"))
@@ -281,6 +353,11 @@ public class DXFReader
             {
                ResetEntityDefaults();
                BeginPolyline(polylineClosed);
+            }
+            else if(!strcmp(value, "HATCH"))
+            {
+               ResetEntityDefaults();
+               BeginHatch();
             }
             else if(!strcmp(value, "LINE") || !strcmp(value, "CIRCLE") || !strcmp(value, "ARC") ||
                     !strcmp(value, "ELLIPSE") || !strcmp(value, "TEXT") || !strcmp(value, "MTEXT") ||
@@ -304,6 +381,8 @@ public class DXFReader
                inEntities = true;
             else if(!strcmp(value, "BLOCKS"))
                inBlocks = true;
+            else if(inHatch && entityType[0] && !strcmp(entityType, "HATCH"))
+               hatchEntity.SetHPattern(value);
             else if(entityType[0] && (!strcmp(entityType, "BLOCK") || !strcmp(entityType, "INSERT")))
             {
                strncpy(blockName, value, sizeof(blockName) - 1);
@@ -336,7 +415,20 @@ public class DXFReader
                }
                break;
             case 10:
-               if(inPolyline)
+               if(inHatch)
+               {
+                  if(hatchCollectBoundary)
+                  {
+                     if(hatchHavePendingX)
+                        AddHatchBoundaryVertex(hatchPendingX, hatchPendingY, hatchPendingZ);
+                     hatchPendingX = ParseDouble(value);
+                     hatchPendingY = hatchPendingZ = 0;
+                     hatchHavePendingX = true;
+                  }
+                  else if(!hatchGotSeed)
+                     hatchSeedX = ParseDouble(value);
+               }
+               else if(inPolyline)
                {
                   if(havePendingX)
                      AddPolylineVertex(pendingX, pendingY, pendingZ, bulge);
@@ -350,7 +442,21 @@ public class DXFReader
                break;
             case 11: x2 = majorX = ParseDouble(value); break;
             case 20:
-               if(inPolyline && havePendingX)
+               if(inHatch)
+               {
+                  if(hatchCollectBoundary && hatchHavePendingX)
+                  {
+                     hatchPendingY = ParseDouble(value);
+                     AddHatchBoundaryVertex(hatchPendingX, hatchPendingY, hatchPendingZ);
+                     hatchHavePendingX = false;
+                  }
+                  else if(!hatchGotSeed)
+                  {
+                     hatchSeedY = ParseDouble(value);
+                     hatchGotSeed = true;
+                  }
+               }
+               else if(inPolyline && havePendingX)
                {
                   pendingY = ParseDouble(value);
                   AddPolylineVertex(pendingX, pendingY, pendingZ, bulge);
@@ -362,7 +468,9 @@ public class DXFReader
                break;
             case 21: y2 = majorY = ParseDouble(value); break;
             case 30:
-               if(inPolyline && havePendingX)
+               if(inHatch && hatchCollectBoundary && hatchHavePendingX)
+                  hatchPendingZ = ParseDouble(value);
+               else if(inPolyline && havePendingX)
                   pendingZ = ParseDouble(value);
                else
                   z1 = cz = ParseDouble(value);
@@ -390,9 +498,18 @@ public class DXFReader
                break;
             case 51: endAngle = ParseDouble(value); break;
             case 70:
-               polylineClosed = (atoi(value) & 1) != 0;
-               if(inPolyline)
-                  polylineEntity.closed = polylineClosed;
+               if(inHatch)
+                  hatchEntity.solid = atoi(value) != 0;
+               else
+               {
+                  polylineClosed = (atoi(value) & 1) != 0;
+                  if(inPolyline)
+                     polylineEntity.closed = polylineClosed;
+               }
+               break;
+            case 93:
+               if(inHatch && atoi(value) > 0)
+                  hatchCollectBoundary = true;
                break;
          }
       }
@@ -401,6 +518,8 @@ public class DXFReader
       {
          if(!strcmp(entityType, "LWPOLYLINE") || !strcmp(entityType, "POLYLINE"))
             FinishPolyline();
+         else if(!strcmp(entityType, "HATCH"))
+            FinishHatch();
          else if(!strcmp(entityType, "ENDBLK"))
             EndBlock();
          else

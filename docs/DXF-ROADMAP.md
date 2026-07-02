@@ -29,12 +29,14 @@ DXF / API input
   - TEXT, MTEXT
   - INSERT
   - BLOCK / ENDBLK
+  - HATCH (solid fill, polyline boundary)
 - Demo: `samples/guiAndGfx/VectorDemo/` with `sample.dxf`
 
 ### Phase 3 — DXF export
 - `DXFWriter.ec` writes ASCII DXF from `CADDocument`
 - Preserves layers, colors, block definitions, and the same entity subset as the reader
 - SPLINE and LEADER entities are exported as LWPOLYLINE approximations
+- HATCH entities export seed point, pattern name, solid flag, and boundary vertices
 - Round-trip example:
 
 ```sh
@@ -42,11 +44,18 @@ DXF / API input
 python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf
 ```
 
-### Phase 4 — Interaction (partial)
+### Phase 4 — Interaction
 - `SelectionManager.ec` picks entities by display-line distance and builds grip overlays
 - `VectorDemo` supports click-to-select with highlight and grip drawing
+- Grip drag editing: pick a grip, drag to modify entity geometry (LINE, CIRCLE, ARC, ELLIPSE, POLYLINE, SPLINE, TEXT, INSERT, LEADER, HATCH)
 - `VectorRenderer` provides `ScreenToWorld`, `DrawSelectedEntity`, and `DrawInteractionOverlay`
-- Snap points and editing operations remain planned
+- Snap points and constraint editing remain planned
+
+### Phase 5 — Advanced entities (partial)
+- HATCH fill import/export (solid, polyline boundary)
+- DIMENSION / LEADER DXF annotation
+- SPLINE from fit/control points
+- Binary DXF and DWG conversion (external tool or library)
 
 ### Precision handling
 - Coordinates are stored as `double` throughout the semantic model
@@ -75,12 +84,11 @@ On Windows, open `VectorDemo.epj` in the Ecere IDE or use the equivalent
 
 ### Phase 4 — Interaction (remaining)
 - Snap points and constraint editing
-- Grip drag to modify entity geometry
 
-### Phase 5 — Advanced entities
-- HATCH fill parsing
-- DIMENSION / LEADER annotation
-- SPLINE from fit/control points
+### Phase 5 — Advanced entities (remaining)
+- DIMENSION annotation
+- Full HATCH pattern definitions and associative boundaries
+- SPLINE fit points from DXF
 - Binary DXF and DWG conversion (external tool or library)
 
 ## Notes

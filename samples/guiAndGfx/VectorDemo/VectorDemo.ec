@@ -2,11 +2,7 @@ import "ecere"
 import "Vector"
 import "VectorRenderer"
 
-// Vector / CAD demo: load ASCII DXF, optionally export back to DXF.
-//   VectorDemo
-//   VectorDemo path/to/file.dxf
-//   VectorDemo path/to/file.dxf --export out.dxf
-//   VectorDemo --export out.dxf
+// Vector / CAD demo: load ASCII DXF, select entities, drag grips to edit, export DXF.
 class VectorDemo : Window
 {
    text = "Ecere eC - Vector / CAD / DXF Demo";
@@ -23,6 +19,8 @@ class VectorDemo : Window
    SemanticEntity selectedEntity;
    InteractionOverlay overlay;
    char statusText[512];
+   bool draggingGrip;
+   int dragGripIndex;
 
    void BuildBuiltinDemo()
    {
@@ -34,6 +32,10 @@ class VectorDemo : Window
       {
          { 0, 150, 0 }, { 40, 190, 0 }, { 80, 150, 0 }, { 120, 190, 0 }
       };
+      VectorPoint hatchBoundary[4] =
+      {
+         { 280, 120, 0 }, { 360, 120, 0 }, { 360, 180, 0 }, { 280, 180, 0 }
+      };
 
       document.CreateLine({ 0, 0, 0 }, { 100, 0, 0 }, "GRID");
       document.CreateCircle({ 160, 60, 0 }, 35, "OBJECTS");
@@ -42,6 +44,7 @@ class VectorDemo : Window
       document.CreatePolyline(poly, 4, true, "OBJECTS");
       document.CreateSpline(splinePoints, 4, 3, false, "OBJECTS");
       document.CreateText({ 20, 220, 0 }, { 20, 220, 0 }, "Hello", 12, "STANDARD", "ANNOTATION");
+      document.CreateHatch({ 320, 150, 0 }, hatchBoundary, 4, "SOLID", "OBJECTS");
       document.RebuildSemanticDisplayLines();
    }
 
@@ -57,6 +60,27 @@ class VectorDemo : Window
       return false;
    }
 
+   void EnsureRendererFit()
+   {
+      VectorBounds b;
+      if(document.displayLines.count)
+      {
+         b = renderer.DocumentBounds(document);
+         renderer.Fit(b, clientSize.w, clientSize.h, 40);
+      }
+   }
+
+   double PickTolerance()
+   {
+      return 8.0 / (renderer.scale > 0 ? renderer.scale : 1);
+   }
+
+   void RefreshOverlay()
+   {
+      delete overlay;
+      overlay = selectedEntity ? selection.BuildOverlay(selectedEntity) : null;
+   }
+
    VectorDemo()
    {
       GuiApplication app = (GuiApplication)__thisModule;
@@ -65,6 +89,8 @@ class VectorDemo : Window
       int c;
 
       statusText[0] = 0;
+      draggingGrip = false;
+      dragGripIndex = -1;
 
       for(c = 1; c < app.argc; c++)
       {
@@ -139,17 +165,26 @@ class VectorDemo : Window
    {
       VectorPoint world;
       double tolerance;
-      VectorBounds b;
+      int gripIndex;
 
-      if(document.displayLines.count)
+      EnsureRendererFit();
+      world = renderer.ScreenToWorld({ x, y });
+      tolerance = PickTolerance();
+
+      if(selectedEntity && overlay)
       {
-         b = renderer.DocumentBounds(document);
-         renderer.Fit(b, clientSize.w, clientSize.h, 40);
+         gripIndex = selection.PickGrip(overlay, world, tolerance);
+         if(gripIndex >= 0)
+         {
+            draggingGrip = true;
+            dragGripIndex = gripIndex;
+            sprintf(statusText, "Dragging grip %d on %s #" FORMAT64U, gripIndex, EntityTypeName(selectedEntity.type), selectedEntity.id);
+            return true;
+         }
       }
 
-      world = renderer.ScreenToWorld({ x, y });
-      tolerance = 8.0 / (renderer.scale > 0 ? renderer.scale : 1);
-
+      draggingGrip = false;
+      dragGripIndex = -1;
       delete overlay;
       overlay = null;
       selectedEntity = selection.PickEntity(document, world, tolerance);
@@ -160,9 +195,41 @@ class VectorDemo : Window
          sprintf(statusText, "Selected %s #" FORMAT64U " (%d grips)", EntityTypeName(selectedEntity.type), selectedEntity.id, overlay ? overlay.pointCount : 0);
       }
       else
-         sprintf(statusText, "No entity at click (world %.2f, %.2f)", world.x, world.y);
+         sprintf(statusText, "No entity at click (world %.4f, %.4f)", world.x, world.y);
 
       Update(null);
+      return true;
+   }
+
+   bool OnLeftButtonUp(int x, int y, Modifiers mods)
+   {
+      if(draggingGrip)
+      {
+         draggingGrip = false;
+         dragGripIndex = -1;
+         if(selectedEntity)
+            sprintf(statusText, "Updated %s #" FORMAT64U, EntityTypeName(selectedEntity.type), selectedEntity.id);
+      }
+      return true;
+   }
+
+   bool OnMouseMove(int x, int y, Modifiers mods)
+   {
+      VectorPoint world;
+
+      if(!draggingGrip || !selectedEntity || dragGripIndex < 0)
+         return true;
+
+      EnsureRendererFit();
+      world = renderer.ScreenToWorld({ x, y });
+
+      if(selection.ApplyGripMove(selectedEntity, dragGripIndex, world))
+      {
+         document.RebuildSemanticDisplayLines();
+         RefreshOverlay();
+         Update(null);
+      }
+
       return true;
    }
 
@@ -184,7 +251,7 @@ class VectorDemo : Window
       surface.SetForeground(Color { 30, 90, 210 });
       surface.WriteTextf(140, 28, "artistic (blue)");
       surface.SetForeground(Color { 100, 100, 100 });
-      surface.WriteTextf(12, clientSize.h - 20, "Click to select entity");
+      surface.WriteTextf(12, clientSize.h - 20, "Click to select; drag red grips to edit");
    }
 }
 

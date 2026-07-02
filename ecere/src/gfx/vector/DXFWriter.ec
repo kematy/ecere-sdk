@@ -160,6 +160,30 @@ public class DXFWriter
       delete poly.points;
    }
 
+   void WriteHatch(File f, HatchEntity entity)
+   {
+      uint c;
+
+      WritePairString(f, 0, "HATCH");
+      WriteCommonProperties(f, entity);
+      WritePairDouble(f, 10, entity.seed.x);
+      WritePairDouble(f, 20, entity.seed.y);
+      if(!VectorIsZero(entity.seed.z, VECTOR_COORD_EPSILON))
+         WritePairDouble(f, 30, entity.seed.z);
+      WritePairString(f, 2, entity.hPattern ? entity.hPattern : (entity.name ? entity.name : "SOLID"));
+      WritePairInt(f, 70, entity.solid ? 1 : 0);
+      WritePairInt(f, 91, 1);
+      WritePairInt(f, 93, (int)entity.boundaryPointCount);
+
+      for(c = 0; c < entity.boundaryPointCount; c++)
+      {
+         WritePairDouble(f, 10, entity.boundaryPoints[c].x);
+         WritePairDouble(f, 20, entity.boundaryPoints[c].y);
+         if(!VectorIsZero(entity.boundaryPoints[c].z, VECTOR_COORD_EPSILON))
+            WritePairDouble(f, 30, entity.boundaryPoints[c].z);
+      }
+   }
+
    void WriteEntity(File f, SemanticEntity entity)
    {
       if(!entity)
@@ -176,6 +200,7 @@ public class DXFWriter
          case entityText: WriteText(f, (TextEntity)entity); break;
          case entityInsert: WriteInsert(f, (InsertEntity)entity); break;
          case entityLeader: WriteLeaderAsPolyline(f, (LeaderEntity)entity); break;
+         case entityHatch: WriteHatch(f, (HatchEntity)entity); break;
          default: break;
       }
    }
