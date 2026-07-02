@@ -19,6 +19,9 @@ class VectorDemo : Window
 
    CADDocument document { };
    VectorRenderer renderer { };
+   SelectionManager selection { };
+   SemanticEntity selectedEntity;
+   InteractionOverlay overlay;
    char statusText[512];
 
    void BuildBuiltinDemo()
@@ -109,9 +112,70 @@ class VectorDemo : Window
       }
    }
 
+   ~VectorDemo()
+   {
+      delete overlay;
+   }
+
+   const char * EntityTypeName(SemanticEntityType type)
+   {
+      switch(type)
+      {
+         case entityLine: return "LINE";
+         case entityCircle: return "CIRCLE";
+         case entityArc: return "ARC";
+         case entityEllipse: return "ELLIPSE";
+         case entityPolyline: return "POLYLINE";
+         case entitySpline: return "SPLINE";
+         case entityText: return "TEXT";
+         case entityInsert: return "INSERT";
+         case entityLeader: return "LEADER";
+         case entityHatch: return "HATCH";
+      }
+      return "ENTITY";
+   }
+
+   bool OnLeftButtonDown(int x, int y, Modifiers mods)
+   {
+      VectorPoint world;
+      double tolerance;
+      VectorBounds b;
+
+      if(document.displayLines.count)
+      {
+         b = renderer.DocumentBounds(document);
+         renderer.Fit(b, clientSize.w, clientSize.h, 40);
+      }
+
+      world = renderer.ScreenToWorld({ x, y });
+      tolerance = 8.0 / (renderer.scale > 0 ? renderer.scale : 1);
+
+      delete overlay;
+      overlay = null;
+      selectedEntity = selection.PickEntity(document, world, tolerance);
+
+      if(selectedEntity)
+      {
+         overlay = selection.BuildOverlay(selectedEntity);
+         sprintf(statusText, "Selected %s #" FORMAT64U " (%d grips)", EntityTypeName(selectedEntity.type), selectedEntity.id, overlay ? overlay.pointCount : 0);
+      }
+      else
+         sprintf(statusText, "No entity at click (world %.2f, %.2f)", world.x, world.y);
+
+      Update(null);
+      return true;
+   }
+
    void OnRedraw(Surface surface)
    {
       renderer.DrawDocument(surface, document, clientSize.w, clientSize.h);
+
+      if(selectedEntity)
+      {
+         renderer.DrawSelectedEntity(surface, document, selectedEntity.id);
+         if(overlay)
+            renderer.DrawInteractionOverlay(surface, overlay);
+      }
 
       surface.SetForeground(black);
       surface.WriteTextf(12, 10, "%s", statusText);
@@ -119,6 +183,8 @@ class VectorDemo : Window
       surface.WriteTextf(12, 28, "industrial (dark)");
       surface.SetForeground(Color { 30, 90, 210 });
       surface.WriteTextf(140, 28, "artistic (blue)");
+      surface.SetForeground(Color { 100, 100, 100 });
+      surface.WriteTextf(12, clientSize.h - 20, "Click to select entity");
    }
 }
 

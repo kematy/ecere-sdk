@@ -47,6 +47,16 @@ public:
       };
    }
 
+   VectorPoint ScreenToWorld(Point sp)
+   {
+      return
+      {
+         left + (sp.x - originX) / scale,
+         bottom - (sp.y - originY) / scale,
+         0
+      };
+   }
+
    VectorBounds DocumentBounds(CADDocument doc)
    {
       VectorBounds all;
@@ -139,6 +149,39 @@ public:
          // Industrial lines drawn dark, artistic lines drawn in a distinct accent color
          surface.SetForeground(dl.kind == industrial ? Color { 30, 30, 30 } : Color { 30, 90, 210 });
          DrawDisplayLine(surface, dl);
+      }
+   }
+
+   void DrawSelectedEntity(Surface surface, CADDocument doc, uint64 entityId)
+   {
+      Link link;
+
+      if(!doc || !entityId) return;
+
+      surface.SetForeground(Color { 230, 90, 20 });
+      for(link = doc.displayLines.first; link; link = link.next)
+      {
+         DisplayLine dl = (DisplayLine)doc.displayLines.GetData(link);
+         if(dl && dl.ownerEntityId == entityId)
+            DrawDisplayLine(surface, dl);
+      }
+   }
+
+   void DrawInteractionOverlay(Surface surface, InteractionOverlay overlay)
+   {
+      uint c;
+      int gripSize = 4;
+
+      if(!overlay || !overlay.points) return;
+
+      surface.SetForeground(Color { 220, 40, 40 });
+      for(c = 0; c < overlay.pointCount; c++)
+      {
+         Point sp = ToScreen(overlay.points[c].point);
+         surface.DrawLine(sp.x - gripSize, sp.y - gripSize, sp.x + gripSize, sp.y - gripSize);
+         surface.DrawLine(sp.x + gripSize, sp.y - gripSize, sp.x + gripSize, sp.y + gripSize);
+         surface.DrawLine(sp.x + gripSize, sp.y + gripSize, sp.x - gripSize, sp.y + gripSize);
+         surface.DrawLine(sp.x - gripSize, sp.y + gripSize, sp.x - gripSize, sp.y - gripSize);
       }
    }
 };

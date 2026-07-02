@@ -39,7 +39,14 @@ DXF / API input
 
 ```sh
 ./obj/debug.linux/VectorDemo sample.dxf --export roundtrip.dxf
+python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf
 ```
+
+### Phase 4 — Interaction (partial)
+- `SelectionManager.ec` picks entities by display-line distance and builds grip overlays
+- `VectorDemo` supports click-to-select with highlight and grip drawing
+- `VectorRenderer` provides `ScreenToWorld`, `DrawSelectedEntity`, and `DrawInteractionOverlay`
+- Snap points and editing operations remain planned
 
 ### Precision handling
 - Coordinates are stored as `double` throughout the semantic model
@@ -66,9 +73,9 @@ On Windows, open `VectorDemo.epj` in the Ecere IDE or use the equivalent
 
 ## Next phases
 
-### Phase 4 — Interaction
-- Selection grips via `InteractionOverlay`
-- Snap points and editing operations
+### Phase 4 — Interaction (remaining)
+- Snap points and constraint editing
+- Grip drag to modify entity geometry
 
 ### Phase 5 — Advanced entities
 - HATCH fill parsing
