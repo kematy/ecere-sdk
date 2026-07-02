@@ -32,5 +32,12 @@ and using it to compile/run eC programs. Everything is driven by the top-level `
   (set `LD_LIBRARY_PATH` when running). `LIBRARY_PATH` is required because generated project
   Makefiles do not add the SDK lib dir, so linking fails with `cannot find -lecereCOM` without it.
 - `epj2make` argument order matters: options/`-o <output>` must come before the input `.epj`.
+- eC value structs (e.g. `Point`, `VectorPoint`) are declared `Point p;` / `Point p = { x, y };`;
+  the `Type name { }` instantiation syntax is only for (ref) classes. A `public` class whose public
+  method signatures use classes from another module must `public import` that module.
+- If a project's own `.ec`/`.c` files call libm directly (`sqrt`, `cos`, ...), add `"m"` to the
+  project `Libraries` or linking fails with `undefined reference to 'sqrt'` even though ecere links libm.
+- Vector/CAD module: `ecere/src/gfx/vector/` (semantic entities -> display lines -> CAD document).
+  Runnable GUI example: `samples/guiAndGfx/VectorDemo/` (build via the `epj2make` + `make -f` flow above; needs an X display to run).
 - GUI apps (`ecere-ide` and `guiAndGfx`/`3D` samples) need an X11 display (X11 + OpenGL/Mesa).
   They will not run in a headless shell; use a desktop/X display.
