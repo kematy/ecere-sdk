@@ -1,0 +1,60 @@
+{
+   "Version" : 0.2,
+   "ModuleName" : "VectorDemo",
+   "Options" : {
+      "Warnings" : "All",
+      "TargetType" : "Executable",
+      "TargetFileName" : "VectorDemo",
+      "Libraries" : [
+         "ecere",
+         "m"
+      ],
+      "Console" : false
+   },
+   "Configurations" : [
+      {
+         "Name" : "Debug",
+         "Options" : {
+            "Debug" : true,
+            "PreprocessorDefinitions" : [
+               "IMPORT_STATIC="
+            ],
+            "FastMath" : false
+         }
+      },
+      {
+         "Name" : "MemoryGuard",
+         "Options" : {
+            "Debug" : true,
+            "MemoryGuard" : true,
+            "PreprocessorDefinitions" : [
+               "IMPORT_STATIC="
+            ],
+            "Console" : true,
+            "FastMath" : false
+         }
+      }
+   ],
+   "Files" : [
+      "VectorDemo.ec",
+      "VectorRenderer.ec",
+      {
+         "Folder" : "vector",
+         "Files" : [
+            "../../../ecere/src/gfx/vector/Geometry.ec",
+            "../../../ecere/src/gfx/vector/DisplayLine.ec",
+            "../../../ecere/src/gfx/vector/SemanticEntity.ec",
+            "../../../ecere/src/gfx/vector/InteractionOverlay.ec",
+            "../../../ecere/src/gfx/vector/CADDocument.ec",
+            "../../../ecere/src/gfx/vector/SelectionManager.ec",
+            "../../../ecere/src/gfx/vector/DXFReader.ec",
+            "../../../ecere/src/gfx/vector/DXFWriter.ec",
+            "../../../ecere/src/gfx/vector/Vector.ec"
+         ]
+      }
+   ],
+   "ResourcesPath" : "",
+   "Resources" : [
+
+   ]
+}

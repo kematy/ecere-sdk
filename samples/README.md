@@ -11,6 +11,7 @@ If you are new to eC and Ecere, start with the console samples under `eC/`:
 1. `eC/HelloWorld` - the smallest possible eC program.
 2. `eC/Sandbox` - a starter project meant for experimenting with eC and Ecere APIs.
 3. `eC/FindPrime`, `eC/fibonacci` - small algorithmic examples.
+4. `guiAndGfx/VectorDemo` - 2D vector/CAD demo with ASCII DXF import (`sample.dxf`).
 
 Each sample is an Ecere project (`.epj`). You can open a `.epj` file in the
 Ecere IDE, or build it from the command line once the SDK toolchain is
@@ -28,7 +29,7 @@ the build/run actions in the Ecere IDE.
 
 - **eC/** - core language demos and starter projects (best entry point).
 - **guiAndGfx/** - GUI toolkit and 2D graphics: controls, forms, skinning,
-  fractals, notepad-style apps, and more (largest sample set).
+  fractals, notepad-style apps, vector/CAD demo (`VectorDemo`), and more (largest sample set).
 - **3D/** - 3D graphics: OpenGL, model viewers, raytracer, terrain, cubes.
 - **games/** - complete small games: chess, cards, tetrominoes, tic-tac-toe,
   TilesRPG, and others.
