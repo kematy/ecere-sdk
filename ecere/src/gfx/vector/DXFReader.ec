@@ -1,5 +1,6 @@
 namespace gfx::vector;
 
+import "Geometry"
 import "CADDocument"
 
 // Phase 2: ASCII DXF import into the semantic CAD model (CADDocument).
@@ -29,7 +30,7 @@ public class DXFReader
 
    double ParseDouble(const char * value)
    {
-      return value ? atof(value) : 0;
+      return ParseDXFDouble(value);
    }
 
    void ResetEntityDefaults()
@@ -101,7 +102,7 @@ public class DXFReader
       polylineEntity.points = points;
       polylineEntity.pointCount = index + 1;
 
-      if(bulge != 0 && polylineEntity.pointCount > 1)
+      if(!VectorIsZero(bulge, VECTOR_BULGE_EPSILON) && polylineEntity.pointCount > 1)
       {
          segmentCount = polylineEntity.pointCount - 1;
          bulges = new double[segmentCount];
@@ -161,7 +162,7 @@ public class DXFReader
       else if(!strcmp(entityType, "ELLIPSE"))
       {
          double majorLen = sqrt(majorX * majorX + majorY * majorY + majorZ * majorZ);
-         double rot = majorLen > 0 ? atan2(majorY, majorX) * 180.0 / 3.14159265358979323846 : 0;
+         double rot = majorLen > 0 ? VectorRadiansToDegrees(atan2(majorY, majorX)) : 0;
          EllipseEntity entity
          {
             center = { cx, cy, cz },

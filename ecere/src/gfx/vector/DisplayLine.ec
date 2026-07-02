@@ -47,18 +47,18 @@ public:
       {
          // Sample the actual sweep so rotation and partial arcs produce a tight, correct box
          // (the previous full-AABB estimate over-reported bounds for rotated / partial arcs).
-         double pi = 3.14159265358979323846;
          double a0 = startAngle, a1 = endAngle;
-         double rot = rotation * pi / 180.0;
+         double rot = VectorDegreesToRadians(rotation);
          double cr = cos(rot), sr = sin(rot);
-         uint steps = 64, i;
          double sweep;
+         uint steps, i;
 
          if(a1 < a0) a1 += 360;
          sweep = a1 - a0;
+         steps = VectorArcSampleCount(sweep, radiusX > radiusY ? radiusX : radiusY, 64, 512);
          for(i = 0; i <= steps; i++)
          {
-            double ang = (a0 + sweep * (double)i / (double)steps) * pi / 180.0;
+            double ang = VectorDegreesToRadians(a0 + sweep * (double)i / (double)steps);
             double ex = radiusX * cos(ang);
             double ey = radiusY * sin(ang);
             VectorPoint p =

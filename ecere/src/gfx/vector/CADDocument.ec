@@ -1,5 +1,6 @@
 namespace gfx::vector;
 
+import "Geometry"
 import "SemanticEntity"
 import "DisplayLine"
 
@@ -89,7 +90,7 @@ public:
 
    VectorPoint TransformInsertPoint(InsertEntity insert, VectorPoint p)
    {
-      double angle = insert.angle * 3.14159265358979323846 / 180.0;
+      double angle = VectorDegreesToRadians(insert.angle);
       double c = cos(angle), s = sin(angle);
       double x = p.x * insert.xScale;
       double y = p.y * insert.yScale;
@@ -184,7 +185,7 @@ public:
       int rows = insert.rowCount > 0 ? insert.rowCount : 1;
       int cols = insert.colCount > 0 ? insert.colCount : 1;
       bool added = false;
-      double angle = insert.angle * 3.14159265358979323846 / 180.0;
+      double angle = VectorDegreesToRadians(insert.angle);
       double c = cos(angle), s = sin(angle);
 
       for(row = 0; row < rows; row++)
@@ -254,9 +255,9 @@ public:
             double bulge = entity.bulges ? entity.bulges[c] : 0;
             double startWidth = entity.startWidths ? entity.startWidths[c] : 0;
             double endWidth = entity.endWidths ? entity.endWidths[c] : 0;
-            if(bulge > 0.0000001 || bulge < -0.0000001 ||
-               startWidth > 0.0000001 || startWidth < -0.0000001 ||
-               endWidth > 0.0000001 || endWidth < -0.0000001)
+            if(!VectorIsZero(bulge, VECTOR_BULGE_EPSILON) ||
+               !VectorIsZero(startWidth, VECTOR_GEOM_EPSILON) ||
+               !VectorIsZero(endWidth, VECTOR_GEOM_EPSILON))
                return true;
          }
       }
@@ -287,12 +288,12 @@ public:
          next = 0;
       end = entity.points[next];
 
-      if(bulge > 0.0000001 || bulge < -0.0000001)
+      if(!VectorIsZero(bulge, VECTOR_BULGE_EPSILON))
       {
          double dx = end.x - start.x;
          double dy = end.y - start.y;
          double chord = sqrt(dx * dx + dy * dy);
-         if(chord > 0.0000001)
+         if(!VectorIsZero(chord, VECTOR_GEOM_EPSILON))
          {
             double midX = (start.x + end.x) * 0.5;
             double midY = (start.y + end.y) * 0.5;
@@ -309,8 +310,8 @@ public:
                radiusX = radius, radiusY = radius
             };
             display.stroke.width = PolylineSegmentWidth(entity, index);
-            startAngle = atan2(start.y - display.center.y, start.x - display.center.x) * 180.0 / 3.14159265358979323846;
-            endAngle = atan2(end.y - display.center.y, end.x - display.center.x) * 180.0 / 3.14159265358979323846;
+            startAngle = VectorRadiansToDegrees(atan2(start.y - display.center.y, start.x - display.center.x));
+            endAngle = VectorRadiansToDegrees(atan2(end.y - display.center.y, end.x - display.center.x));
             if(bulge < 0)
             {
                double swap = startAngle;

@@ -38,10 +38,12 @@ public:
 
    Point ToScreen(VectorPoint p)
    {
+      double sx = originX + (p.x - left) * scale;
+      double sy = originY + (bottom - p.y) * scale;
       return
       {
-         (int)(originX + (p.x - left) * scale),
-         (int)(originY + (bottom - p.y) * scale)
+         (int)(sx >= 0 ? sx + 0.5 : sx - 0.5),
+         (int)(sy >= 0 ? sy + 0.5 : sy - 0.5)
       };
    }
 
@@ -66,23 +68,24 @@ public:
    {
       bool hasPrev = false;
       Point prev, first;
-      double pi = 3.14159265358979323846;
 
       if(!dl) return;
 
       if(dl.implementation == ellipseArc)
       {
          double a0 = dl.startAngle, a1 = dl.endAngle;
-         double rot = dl.rotation * pi / 180.0;
+         double rot = VectorDegreesToRadians(dl.rotation);
          double cr = cos(rot), sr = sin(rot);
-         uint steps = 96, i;
          double sweep;
+         uint steps, i;
 
          if(a1 < a0) a1 += 360;
          sweep = a1 - a0;
+         steps = VectorArcSampleCount(sweep, dl.radiusX > dl.radiusY ? dl.radiusX : dl.radiusY, 32, 512);
+
          for(i = 0; i <= steps; i++)
          {
-            double ang = (a0 + sweep * (double)i / (double)steps) * pi / 180.0;
+            double ang = VectorDegreesToRadians(a0 + sweep * (double)i / (double)steps);
             double ex = dl.radiusX * cos(ang);
             double ey = dl.radiusY * sin(ang);
             VectorPoint wp =

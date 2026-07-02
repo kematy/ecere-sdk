@@ -41,6 +41,17 @@ DXF / API input
 ./obj/debug.linux/VectorDemo sample.dxf --export roundtrip.dxf
 ```
 
+### Precision handling
+- Coordinates are stored as `double` throughout the semantic model
+- DXF import uses `strtod` via `ParseDXFDouble()` (not `atof`)
+- DXF export uses `FormatDXFDouble()` with 15 significant digits (not `printf %f`)
+- Shared tolerances live in `Geometry.ec`:
+  - `VECTOR_COORD_EPSILON` for coordinate zero-snapping
+  - `VECTOR_BULGE_EPSILON` for bulge segment detection
+  - `VECTOR_GEOM_EPSILON` for chord/width comparisons
+- Arc bounds and rendering use adaptive tessellation via `VectorArcSampleCount()`
+- DXF header writes `$LUPREC` / `$AUPREC` = 15 for CAD tool compatibility
+
 Run the demo (after building the SDK):
 
 ```sh

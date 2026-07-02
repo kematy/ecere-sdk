@@ -1,5 +1,6 @@
 namespace gfx::vector;
 
+import "Geometry"
 import "CADDocument"
 
 // Phase 3: ASCII DXF export from the semantic CAD model (CADDocument).
@@ -16,8 +17,10 @@ public class DXFWriter
 
    void WritePairDouble(File f, int code, double value)
    {
+      char buffer[64];
+      FormatDXFDouble(buffer, sizeof(buffer), value);
       f.PrintLn("%d", code);
-      f.PrintLn("%f", value);
+      f.PrintLn("%s", buffer);
    }
 
    void WritePairString(File f, int code, const char * value)
@@ -72,7 +75,7 @@ public class DXFWriter
 
    void WriteEllipse(File f, EllipseEntity entity)
    {
-      double rot = entity.rotation * 3.14159265358979323846 / 180.0;
+      double rot = VectorDegreesToRadians(entity.rotation);
       double majorX = entity.radiusX * cos(rot);
       double majorY = entity.radiusX * sin(rot);
       double ratio = entity.radiusX > 0 ? entity.radiusY / entity.radiusX : 1;
@@ -103,9 +106,9 @@ public class DXFWriter
 
          WritePairDouble(f, 10, entity.points[c].x);
          WritePairDouble(f, 20, entity.points[c].y);
-         if(entity.points[c].z != 0)
+         if(!VectorIsZero(entity.points[c].z, VECTOR_COORD_EPSILON))
             WritePairDouble(f, 30, entity.points[c].z);
-         if(entity.bulges && c < segCount && entity.bulges[c] != 0)
+         if(entity.bulges && c < segCount && !VectorIsZero(entity.bulges[c], VECTOR_BULGE_EPSILON))
             WritePairDouble(f, 42, entity.bulges[c]);
       }
    }
@@ -128,7 +131,7 @@ public class DXFWriter
       WritePairDouble(f, 20, entity.position.y);
       WritePairDouble(f, 30, entity.position.z);
       WritePairDouble(f, 40, entity.height);
-      if(entity.angle != 0)
+      if(!VectorIsZero(entity.angle, VECTOR_COORD_EPSILON))
          WritePairDouble(f, 50, entity.angle);
       WritePairString(f, 1, entity.text ? entity.text : "");
    }
@@ -141,10 +144,10 @@ public class DXFWriter
       WritePairDouble(f, 10, entity.position.x);
       WritePairDouble(f, 20, entity.position.y);
       WritePairDouble(f, 30, entity.position.z);
-      if(entity.xScale != 1) WritePairDouble(f, 41, entity.xScale);
-      if(entity.yScale != 1) WritePairDouble(f, 42, entity.yScale);
-      if(entity.zScale != 1) WritePairDouble(f, 43, entity.zScale);
-      if(entity.angle != 0) WritePairDouble(f, 50, entity.angle);
+      if(!VectorIsZero(entity.xScale - 1, VECTOR_COORD_EPSILON)) WritePairDouble(f, 41, entity.xScale);
+      if(!VectorIsZero(entity.yScale - 1, VECTOR_COORD_EPSILON)) WritePairDouble(f, 42, entity.yScale);
+      if(!VectorIsZero(entity.zScale - 1, VECTOR_COORD_EPSILON)) WritePairDouble(f, 43, entity.zScale);
+      if(!VectorIsZero(entity.angle, VECTOR_COORD_EPSILON)) WritePairDouble(f, 50, entity.angle);
    }
 
    void WriteLeaderAsPolyline(File f, LeaderEntity entity)
@@ -227,6 +230,10 @@ public class DXFWriter
       WritePairString(f, 2, "HEADER");
       WritePairString(f, 9, "$ACADVER");
       WritePairString(f, 1, "AC1015");
+      WritePairString(f, 9, "$LUPREC");
+      WritePairInt(f, 70, VECTOR_DXF_DECIMALS);
+      WritePairString(f, 9, "$AUPREC");
+      WritePairInt(f, 70, VECTOR_DXF_DECIMALS);
       WritePairString(f, 0, "ENDSEC");
    }
 
