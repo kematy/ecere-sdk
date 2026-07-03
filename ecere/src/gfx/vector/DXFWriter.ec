@@ -114,6 +114,37 @@ public class DXFWriter
       }
    }
 
+   void WriteSpline(File f, SplineEntity entity)
+   {
+      uint c;
+
+      WritePairString(f, 0, "SPLINE");
+      WriteCommonProperties(f, entity);
+      WritePairInt(f, 70, entity.closed ? 1 : 0);
+      WritePairInt(f, 71, (int)(entity.degree ? entity.degree : 3));
+
+      if(entity.fitPointCount >= 2)
+      {
+         WritePairInt(f, 74, (int)entity.fitPointCount);
+         for(c = 0; c < entity.fitPointCount; c++)
+         {
+            WritePairDouble(f, 11, entity.fitPoints[c].x);
+            WritePairDouble(f, 21, entity.fitPoints[c].y);
+            WritePairDouble(f, 31, entity.fitPoints[c].z);
+         }
+      }
+      else if(entity.controlPointCount >= 2)
+      {
+         WritePairInt(f, 73, (int)entity.controlPointCount);
+         for(c = 0; c < entity.controlPointCount; c++)
+         {
+            WritePairDouble(f, 10, entity.controlPoints[c].x);
+            WritePairDouble(f, 20, entity.controlPoints[c].y);
+            WritePairDouble(f, 30, entity.controlPoints[c].z);
+         }
+      }
+   }
+
    void WriteSplineAsPolyline(File f, SplineEntity entity)
    {
       PolylineEntity poly { };
@@ -238,7 +269,7 @@ public class DXFWriter
          case entityArc: WriteArc(f, (ArcEntity)entity); break;
          case entityEllipse: WriteEllipse(f, (EllipseEntity)entity); break;
          case entityPolyline: WritePolyline(f, (PolylineEntity)entity); break;
-         case entitySpline: WriteSplineAsPolyline(f, (SplineEntity)entity); break;
+         case entitySpline: WriteSpline(f, (SplineEntity)entity); break;
          case entityText: WriteText(f, (TextEntity)entity); break;
          case entityInsert: WriteInsert(f, (InsertEntity)entity); break;
          case entityLeader: WriteLeaderAsPolyline(f, (LeaderEntity)entity); break;

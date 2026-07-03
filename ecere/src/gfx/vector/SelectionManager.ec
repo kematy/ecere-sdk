@@ -146,6 +146,8 @@ public class SelectionManager
          case entitySpline:
          {
             SplineEntity spline = (SplineEntity)entity;
+            if(spline.fitPointCount)
+               return spline.fitPointCount;
             return spline.controlPointCount;
          }
          case entityText: return 1;
@@ -261,15 +263,28 @@ public class SelectionManager
          {
             SplineEntity spline = (SplineEntity)entity;
             uint c;
-            if(spline.controlPointCount && spline.controlPoints)
+            VectorPoint * pts;
+            uint ptCount;
+
+            if(spline.fitPointCount && spline.fitPoints)
             {
-               for(c = 0; c < spline.controlPointCount; c++)
-                  ConsiderSnap(spline.controlPoints[c], world, bestDistance, best, found);
-               for(c = 0; c + 1 < spline.controlPointCount; c++)
-               {
-                  VectorPoint mid = MidPoint(spline.controlPoints[c], spline.controlPoints[c + 1]);
-                  ConsiderSnap(mid, world, bestDistance, best, found);
-               }
+               pts = spline.fitPoints;
+               ptCount = spline.fitPointCount;
+            }
+            else if(spline.controlPointCount && spline.controlPoints)
+            {
+               pts = spline.controlPoints;
+               ptCount = spline.controlPointCount;
+            }
+            else
+               break;
+
+            for(c = 0; c < ptCount; c++)
+               ConsiderSnap(pts[c], world, bestDistance, best, found);
+            for(c = 0; c + 1 < ptCount; c++)
+            {
+               VectorPoint mid = MidPoint(pts[c], pts[c + 1]);
+               ConsiderSnap(mid, world, bestDistance, best, found);
             }
             break;
          }
@@ -397,8 +412,16 @@ public class SelectionManager
          {
             SplineEntity spline = (SplineEntity)entity;
             uint c;
-            for(c = 0; c < spline.controlPointCount; c++)
-               AddGrip(points, &index, spline.controlPoints[c]);
+            if(spline.fitPointCount && spline.fitPoints)
+            {
+               for(c = 0; c < spline.fitPointCount; c++)
+                  AddGrip(points, &index, spline.fitPoints[c]);
+            }
+            else
+            {
+               for(c = 0; c < spline.controlPointCount; c++)
+                  AddGrip(points, &index, spline.controlPoints[c]);
+            }
             break;
          }
          case entityText:
@@ -618,9 +641,20 @@ public class SelectionManager
          case entitySpline:
          {
             SplineEntity spline = (SplineEntity)entity;
-            if((uint)gripIndex >= spline.controlPointCount || !spline.controlPoints)
+            if(spline.fitPointCount && spline.fitPoints)
+            {
+               if((uint)gripIndex >= spline.fitPointCount)
+                  return false;
+               spline.fitPoints[gripIndex] = newPoint;
+            }
+            else if(spline.controlPointCount && spline.controlPoints)
+            {
+               if((uint)gripIndex >= spline.controlPointCount)
+                  return false;
+               spline.controlPoints[gripIndex] = newPoint;
+            }
+            else
                return false;
-            spline.controlPoints[gripIndex] = newPoint;
             spline.Touch();
             break;
          }
@@ -692,5 +726,27 @@ public class SelectionManager
       }
 
       return true;
+   }
+
+   public void ConstrainGripMove(VectorPoint gripStart, VectorPoint rawPoint, bool orthoEnabled, VectorPoint * result)
+   {
+      double dx, dy;
+
+      if(!result)
+         return;
+
+      if(!orthoEnabled)
+      {
+         (*result) = rawPoint;
+         return;
+      }
+
+      dx = rawPoint.x - gripStart.x;
+      dy = rawPoint.y - gripStart.y;
+
+      if(fabs(dx) >= fabs(dy))
+         (*result) = { rawPoint.x, gripStart.y, rawPoint.z };
+      else
+         (*result) = { gripStart.x, rawPoint.y, rawPoint.z };
    }
 };

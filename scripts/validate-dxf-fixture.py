@@ -14,6 +14,7 @@ REQUIRED_ENTITIES = (
     "ELLIPSE",
     "LWPOLYLINE",
     "TEXT",
+    "SPLINE",
     "HATCH",
     "DIMENSION",
 )

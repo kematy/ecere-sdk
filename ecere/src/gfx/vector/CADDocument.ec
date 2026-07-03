@@ -729,6 +729,33 @@ public:
       return entity.controlPoints[index];
    }
 
+   VectorPoint SplineFitPoint(SplineEntity entity, int index)
+   {
+      if(!entity.fitPoints || entity.fitPointCount < 1)
+         return { 0, 0, 0 };
+      if(index < 0)
+         index = 0;
+      if(index >= (int)entity.fitPointCount)
+         index = (int)entity.fitPointCount - 1;
+      return entity.fitPoints[index];
+   }
+
+   VectorPoint EvaluateFitSplinePreview(SplineEntity entity, int segment, double t)
+   {
+      VectorPoint p0 = SplineFitPoint(entity, segment - 1);
+      VectorPoint p1 = SplineFitPoint(entity, segment);
+      VectorPoint p2 = SplineFitPoint(entity, segment + 1);
+      VectorPoint p3 = SplineFitPoint(entity, segment + 2);
+      double t2 = t * t;
+      double t3 = t2 * t;
+      return
+      {
+         0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+         0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+         0.5 * ((2 * p1.z) + (-p0.z + p2.z) * t + (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * t2 + (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * t3)
+      };
+   }
+
    VectorPoint EvaluateSplinePreview(SplineEntity entity, int segment, double t)
    {
       VectorPoint p0 = SplineControlPoint(entity, segment - 1);
@@ -772,8 +799,40 @@ public:
       return display;
    }
 
+   DisplayLine CreateFitSplinePreviewDisplay(SplineEntity entity, DisplayLineKind kind)
+   {
+      uint c, step;
+      uint stepsPerSegment = 8;
+      uint segmentCount = entity.fitPointCount > 1 ? entity.fitPointCount - 1 : 0;
+      uint pointCount = segmentCount ? segmentCount * stepsPerSegment + 1 : entity.fitPointCount;
+      VectorPoint * points = pointCount ? new VectorPoint[pointCount] : null;
+      uint out = 0;
+      DisplayLine display { ownerEntityId = entity.id, kind = kind, implementation = polyline, closed = entity.closed, cachedVersion = entity.version };
+
+      if(segmentCount)
+      {
+         for(c = 0; c < segmentCount; c++)
+         {
+            for(step = 0; step < stepsPerSegment; step++)
+               points[out++] = EvaluateFitSplinePreview(entity, (int)c, (double)step / (double)stepsPerSegment);
+         }
+         points[out++] = entity.fitPoints[entity.fitPointCount - 1];
+      }
+      else if(entity.fitPointCount == 1)
+         points[out++] = entity.fitPoints[0];
+
+      display.SetPoints(points, out);
+      delete points;
+      return display;
+   }
+
    bool AddSplineDisplayLine(SplineEntity entity, DisplayLineKind kind)
    {
+      if(entity && entity.fitPointCount >= 2)
+      {
+         displayLines.Add(CreateFitSplinePreviewDisplay(entity, kind));
+         return true;
+      }
       if(entity && entity.controlPointCount > 2)
       {
          displayLines.Add(CreateSplinePreviewDisplay(entity, kind));
@@ -784,9 +843,11 @@ public:
 
    bool AddTransformedSplineDisplayLine(SplineEntity entity, InsertEntity insert)
    {
-      if(entity && entity.controlPointCount > 2)
+      if(entity && (entity.fitPointCount >= 2 || entity.controlPointCount > 2))
       {
-         DisplayLine display = CreateSplinePreviewDisplay(entity, entity.GetFamily());
+         DisplayLine display = entity.fitPointCount >= 2 ?
+            CreateFitSplinePreviewDisplay(entity, entity.GetFamily()) :
+            CreateSplinePreviewDisplay(entity, entity.GetFamily());
          AddTransformedDisplayLine(display, insert);
          delete display;
          return true;

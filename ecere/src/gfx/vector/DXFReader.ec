@@ -7,7 +7,7 @@ import "CADDocument"
 // Phase 2: ASCII DXF import into the semantic CAD model (CADDocument).
 // Supported entities: LINE, CIRCLE, ARC, ELLIPSE, LWPOLYLINE, POLYLINE/VERTEX,
 // TEXT, MTEXT, INSERT, BLOCK/ENDBLK (block definitions), HATCH (solid/polyline boundary),
-// DIMENSION (linear aligned, simplified).
+// DIMENSION (linear aligned, simplified), SPLINE (control and fit points).
 public class DXFReader
 {
    CADDocument document;
@@ -15,6 +15,12 @@ public class DXFReader
    bool inBlockDefinition;
    bool inPolyline;
    PolylineEntity polylineEntity;
+   SplineEntity splineEntity;
+   bool inSpline;
+   bool splineHavePendingControlX;
+   double splineControlPendingX, splineControlPendingY, splineControlPendingZ;
+   bool splineHavePendingFitX;
+   double splineFitPendingX, splineFitPendingY, splineFitPendingZ;
    HatchEntity hatchEntity;
    bool inHatch;
    bool hatchCollectBoundary;
@@ -141,6 +147,87 @@ public class DXFReader
          {
             delete entity.points;
             delete entity.bulges;
+         }
+      }
+   }
+
+   void BeginSpline()
+   {
+      FinishSpline();
+      inSpline = true;
+      splineHavePendingControlX = splineHavePendingFitX = false;
+      splineEntity = { };
+      splineEntity.type = entitySpline;
+      splineEntity.degree = 3;
+   }
+
+   void AddSplineControlPoint(double x, double y, double z)
+   {
+      uint index;
+      VectorPoint * points;
+
+      if(!inSpline)
+         return;
+
+      index = splineEntity.controlPointCount;
+      points = splineEntity.controlPointCount ? new VectorPoint[splineEntity.controlPointCount + 1] : new VectorPoint[1];
+      if(splineEntity.controlPoints)
+      {
+         memcpy(points, splineEntity.controlPoints, sizeof(VectorPoint) * splineEntity.controlPointCount);
+         delete splineEntity.controlPoints;
+      }
+      points[index] = { x, y, z };
+      splineEntity.controlPoints = points;
+      splineEntity.controlPointCount = index + 1;
+   }
+
+   void AddSplineFitPoint(double x, double y, double z)
+   {
+      uint index;
+      VectorPoint * points;
+
+      if(!inSpline)
+         return;
+
+      index = splineEntity.fitPointCount;
+      points = splineEntity.fitPointCount ? new VectorPoint[splineEntity.fitPointCount + 1] : new VectorPoint[1];
+      if(splineEntity.fitPoints)
+      {
+         memcpy(points, splineEntity.fitPoints, sizeof(VectorPoint) * splineEntity.fitPointCount);
+         delete splineEntity.fitPoints;
+      }
+      points[index] = { x, y, z };
+      splineEntity.fitPoints = points;
+      splineEntity.fitPointCount = index + 1;
+   }
+
+   void FinishSpline()
+   {
+      SplineEntity entity;
+      if(inSpline)
+      {
+         if(splineHavePendingControlX)
+         {
+            splineHavePendingControlX = false;
+            AddSplineControlPoint(splineControlPendingX, splineControlPendingY, splineControlPendingZ);
+         }
+         if(splineHavePendingFitX)
+         {
+            splineHavePendingFitX = false;
+            AddSplineFitPoint(splineFitPendingX, splineFitPendingY, splineFitPendingZ);
+         }
+
+         entity = splineEntity;
+         splineEntity = { };
+         inSpline = false;
+         if(entity.controlPointCount >= 2 || entity.fitPointCount >= 2)
+            AddToTarget(entity);
+         else
+         {
+            delete entity.controlPoints;
+            delete entity.fitPoints;
+            delete entity.knots;
+            delete entity.weights;
          }
       }
    }
@@ -310,9 +397,11 @@ public class DXFReader
       blockName[0] = 0;
       lastError[0] = 0;
       document = target;
-      inBlockDefinition = inPolyline = inHatch = false;
+      inBlockDefinition = inPolyline = inHatch = inSpline = false;
       currentBlock = null;
       polylineEntity = { };
+      splineEntity = { };
+      splineHavePendingControlX = splineHavePendingFitX = false;
       hatchEntity = { };
       hatchCollectBoundary = hatchGotSeed = hatchHavePendingX = false;
 
@@ -338,6 +427,8 @@ public class DXFReader
             {
                if(!strcmp(entityType, "LWPOLYLINE") || !strcmp(entityType, "POLYLINE"))
                   FinishPolyline();
+               else if(!strcmp(entityType, "SPLINE"))
+                  FinishSpline();
                else if(!strcmp(entityType, "HATCH"))
                   FinishHatch();
                else if(!strcmp(entityType, "ENDBLK"))
@@ -364,6 +455,7 @@ public class DXFReader
             else if(!strcmp(value, "ENDSEC"))
             {
                FinishPolyline();
+               FinishSpline();
                FinishHatch();
                inEntities = inBlocks = false;
             }
@@ -393,6 +485,11 @@ public class DXFReader
             {
                ResetEntityDefaults();
                BeginHatch();
+            }
+            else if(!strcmp(value, "SPLINE"))
+            {
+               ResetEntityDefaults();
+               BeginSpline();
             }
             else if(!strcmp(value, "LINE") || !strcmp(value, "CIRCLE") || !strcmp(value, "ARC") ||
                     !strcmp(value, "ELLIPSE") || !strcmp(value, "TEXT") || !strcmp(value, "MTEXT") ||
@@ -463,6 +560,14 @@ public class DXFReader
                   else if(!hatchGotSeed)
                      hatchSeedX = ParseDouble(value);
                }
+               else if(inSpline)
+               {
+                  if(splineHavePendingControlX)
+                     AddSplineControlPoint(splineControlPendingX, splineControlPendingY, splineControlPendingZ);
+                  splineControlPendingX = ParseDouble(value);
+                  splineControlPendingY = splineControlPendingZ = 0;
+                  splineHavePendingControlX = true;
+               }
                else if(inPolyline)
                {
                   if(havePendingX)
@@ -478,7 +583,15 @@ public class DXFReader
                   x1 = cx = ParseDouble(value);
                break;
             case 11:
-               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+               if(inSpline)
+               {
+                  if(splineHavePendingFitX)
+                     AddSplineFitPoint(splineFitPendingX, splineFitPendingY, splineFitPendingZ);
+                  splineFitPendingX = ParseDouble(value);
+                  splineFitPendingY = splineFitPendingZ = 0;
+                  splineHavePendingFitX = true;
+               }
+               else if(entityType[0] && !strcmp(entityType, "DIMENSION"))
                   x2 = ParseDouble(value);
                else
                   x2 = majorX = ParseDouble(value);
@@ -510,6 +623,14 @@ public class DXFReader
                      hatchGotSeed = true;
                   }
                }
+               else if(inSpline && splineHavePendingControlX)
+               {
+                  splineControlPendingY = ParseDouble(value);
+                  AddSplineControlPoint(splineControlPendingX, splineControlPendingY, splineControlPendingZ);
+                  splineHavePendingControlX = false;
+               }
+               else if(inSpline && splineHavePendingFitX)
+                  splineFitPendingY = ParseDouble(value);
                else if(inPolyline && havePendingX)
                {
                   pendingY = ParseDouble(value);
@@ -523,7 +644,9 @@ public class DXFReader
                   y1 = cy = ParseDouble(value);
                break;
             case 21:
-               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+               if(inSpline && splineHavePendingFitX)
+                  splineFitPendingY = ParseDouble(value);
+               else if(entityType[0] && !strcmp(entityType, "DIMENSION"))
                   y2 = ParseDouble(value);
                else
                   y2 = majorY = ParseDouble(value);
@@ -543,6 +666,10 @@ public class DXFReader
             case 30:
                if(inHatch && hatchCollectBoundary && hatchHavePendingX)
                   hatchPendingZ = ParseDouble(value);
+               else if(inSpline && splineHavePendingControlX)
+                  splineControlPendingZ = ParseDouble(value);
+               else if(inSpline && splineHavePendingFitX)
+                  splineFitPendingZ = ParseDouble(value);
                else if(inPolyline && havePendingX)
                   pendingZ = ParseDouble(value);
                else if(entityType[0] && !strcmp(entityType, "DIMENSION"))
@@ -551,7 +678,13 @@ public class DXFReader
                   z1 = cz = ParseDouble(value);
                break;
             case 31:
-               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+               if(inSpline && splineHavePendingFitX)
+               {
+                  splineFitPendingZ = ParseDouble(value);
+                  AddSplineFitPoint(splineFitPendingX, splineFitPendingY, splineFitPendingZ);
+                  splineHavePendingFitX = false;
+               }
+               else if(entityType[0] && !strcmp(entityType, "DIMENSION"))
                   z2 = ParseDouble(value);
                else
                   z2 = majorZ = ParseDouble(value);
@@ -607,6 +740,8 @@ public class DXFReader
             case 70:
                if(inHatch)
                   hatchEntity.solid = atoi(value) != 0;
+               else if(inSpline)
+                  splineEntity.closed = (atoi(value) & 1) != 0;
                else if(entityType[0] && !strcmp(entityType, "DIMENSION"))
                   dimType = atoi(value);
                else
@@ -615,6 +750,10 @@ public class DXFReader
                   if(inPolyline)
                      polylineEntity.closed = polylineClosed;
                }
+               break;
+            case 71:
+               if(inSpline)
+                  splineEntity.degree = (uint)atoi(value);
                break;
             case 93:
                if(inHatch && atoi(value) > 0)
@@ -627,6 +766,8 @@ public class DXFReader
       {
          if(!strcmp(entityType, "LWPOLYLINE") || !strcmp(entityType, "POLYLINE"))
             FinishPolyline();
+         else if(!strcmp(entityType, "SPLINE"))
+            FinishSpline();
          else if(!strcmp(entityType, "HATCH"))
             FinishHatch();
          else if(!strcmp(entityType, "ENDBLK"))
