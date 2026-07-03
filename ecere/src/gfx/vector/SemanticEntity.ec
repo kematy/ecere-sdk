@@ -279,6 +279,8 @@ public:
    uint degree;
    uint controlPointCount;
    VectorPoint * controlPoints;
+   uint fitPointCount;
+   VectorPoint * fitPoints;
    uint flagBits;
    uint knotCount;
    double * knots;
@@ -294,6 +296,7 @@ public:
    ~SplineEntity()
    {
       delete controlPoints;
+      delete fitPoints;
       delete knots;
       delete weights;
    }
@@ -306,6 +309,18 @@ public:
 
       if(controlPoints && source)
          memcpy(controlPoints, source, sizeof(VectorPoint) * count);
+
+      Touch();
+   }
+
+   void SetFitPoints(VectorPoint * source, uint count)
+   {
+      delete fitPoints;
+      fitPoints = count ? new VectorPoint[count] : null;
+      fitPointCount = count;
+
+      if(fitPoints && source)
+         memcpy(fitPoints, source, sizeof(VectorPoint) * count);
 
       Touch();
    }

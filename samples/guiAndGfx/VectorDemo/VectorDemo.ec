@@ -21,6 +21,8 @@ class VectorDemo : Window
    char statusText[512];
    bool draggingGrip;
    int dragGripIndex;
+   VectorPoint dragGripStart;
+   bool constraintOrtho;
    bool hasHoverSnap;
    InteractionPoint hoverSnap;
 
@@ -104,6 +106,7 @@ class VectorDemo : Window
       statusText[0] = 0;
       draggingGrip = false;
       dragGripIndex = -1;
+      constraintOrtho = false;
       hasHoverSnap = false;
 
       for(c = 1; c < app.argc; c++)
@@ -193,7 +196,9 @@ class VectorDemo : Window
          {
             draggingGrip = true;
             dragGripIndex = gripIndex;
-            sprintf(statusText, "Dragging grip %d on %s #%llu", gripIndex, EntityTypeName(selectedEntity.type), selectedEntity.id);
+            dragGripStart = overlay.points[gripIndex].point;
+            constraintOrtho = false;
+            sprintf(statusText, "Dragging grip %d on %s #%llu (Shift = orthogonal)", gripIndex, EntityTypeName(selectedEntity.type), selectedEntity.id);
             return true;
          }
       }
@@ -241,6 +246,13 @@ class VectorDemo : Window
          if(selection.PickSnap(document, world, PickTolerance(), &snap))
             world = snap.point;
 
+         {
+            VectorPoint constrained;
+            selection.ConstrainGripMove(dragGripStart, world, mods.shift, &constrained);
+            world = constrained;
+         }
+         constraintOrtho = mods.shift;
+
          if(selection.ApplyGripMove(selectedEntity, dragGripIndex, world))
          {
             document.RebuildSemanticDisplayLines();
@@ -276,7 +288,7 @@ class VectorDemo : Window
       surface.SetForeground(Color { 30, 90, 210 });
       surface.WriteTextf(140, 28, "artistic (blue)");
       surface.SetForeground(Color { 100, 100, 100 });
-      surface.WriteTextf(12, clientSize.h - 20, "Click to select; drag red grips; green diamond = snap (endpoint/midpoint/center)");
+      surface.WriteTextf(12, clientSize.h - 20, "Click to select; drag red grips; Shift = H/V constraint; green diamond = snap");
    }
 }
 

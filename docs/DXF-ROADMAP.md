@@ -30,12 +30,14 @@ DXF / API input
   - INSERT
   - BLOCK / ENDBLK
   - HATCH (solid fill, polyline boundary)
+  - SPLINE (control and fit points)
+  - DIMENSION (linear, aligned, angular, radial, ordinate)
 - Demo: `samples/guiAndGfx/VectorDemo/` with `sample.dxf`
 
 ### Phase 3 — DXF export
 - `DXFWriter.ec` writes ASCII DXF from `CADDocument`
 - Preserves layers, colors, block definitions, and the same entity subset as the reader
-- SPLINE and LEADER entities are exported as LWPOLYLINE approximations
+- SPLINE entities export fit points or control points; LEADER entities export as LWPOLYLINE
 - HATCH entities export seed point, pattern name, solid flag, and boundary vertices
 - Round-trip example:
 
@@ -51,20 +53,18 @@ Or via VectorDemo GUI export:
 python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf
 ```
 
-### Phase 4 — Interaction
-- `SelectionManager.ec` picks entities by display-line distance and builds grip overlays
-- `VectorDemo` supports click-to-select with highlight and grip drawing
-- Grip drag editing: pick a grip, drag to modify entity geometry (LINE, CIRCLE, ARC, ELLIPSE, POLYLINE, SPLINE, TEXT, INSERT, LEADER, HATCH)
-- Snap points on hover: endpoint, midpoint, and center (green diamond); grip drag snaps when near a snap point
-- `VectorRenderer` provides `ScreenToWorld`, `DrawSelectedEntity`, `DrawInteractionOverlay`, and `DrawSnapPoint`
-- Constraint editing remains planned
+### Phase 4 — Interaction (partial)
+- Grip drag editing with snap points
+- **Orthogonal constraint editing**: hold Shift while dragging a grip to lock movement to horizontal or vertical
+- Full constraint system (angles, lengths, coincident) remains planned
 
 ### Phase 5 — Advanced entities (partial)
 - HATCH fill import/export (solid and named patterns such as ANSI31 with angle/scale)
 - HATCH pattern lines clipped to boundary polygon (segment–edge intersection)
 - DIMENSION linear, aligned, angular, radial, diameter, and ordinate import/export
+- **SPLINE** import/export with fit points (group 11/21/31) and control points (10/20/30)
 - LEADER DXF annotation (exported as polyline)
-- SPLINE from fit/control points
+- SPLINE knots/weights from DXF (not yet)
 - Binary DXF and DWG conversion (external tool or library)
 
 ### CI
@@ -98,11 +98,11 @@ On Windows, open `VectorDemo.epj` in the Ecere IDE or use the equivalent
 ## Next phases
 
 ### Phase 4 — Interaction (remaining)
-- Constraint editing
+- Extended constraint editing (angle, length, coincident)
 
 ### Phase 5 — Advanced entities (remaining)
 - DIMENSION leaders and full annotation styles
-- SPLINE fit points from DXF
+- SPLINE knot vector and weight import from DXF
 - Binary DXF and DWG conversion (external tool or library)
 
 ## Notes

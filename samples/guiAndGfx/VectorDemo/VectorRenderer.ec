@@ -187,6 +187,13 @@ public:
             surface.DrawLine(sp.x, sp.y + snapSize, sp.x - snapSize, sp.y);
             surface.DrawLine(sp.x - snapSize, sp.y, sp.x, sp.y - snapSize);
          }
+         else if(overlay.points[c].kind == constraint)
+         {
+            int mark = 5;
+            surface.SetForeground(Color { 30, 120, 220 });
+            surface.DrawLine(sp.x - mark, sp.y, sp.x + mark, sp.y);
+            surface.DrawLine(sp.x, sp.y - mark, sp.x, sp.y + mark);
+         }
          else
          {
             surface.SetForeground(Color { 220, 40, 40 });
