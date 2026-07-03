@@ -25,7 +25,7 @@ jobs:
             libcurl4-openssl-dev
 
       - name: Build Ecere SDK
-        run: make -j"$(nproc)" DISABLE_SSL=y
+        run: make -j"$(nproc)" DISABLE_SSL=y ECERE_AUDIO=n
 
       - name: Build VectorDemo
         working-directory: samples/guiAndGfx/VectorDemo

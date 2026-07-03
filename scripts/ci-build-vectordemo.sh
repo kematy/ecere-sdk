@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-make -j"$(nproc)" DISABLE_SSL=y
+make -j"$(nproc)" DISABLE_SSL=y ECERE_AUDIO=n
 
 export PATH="$ROOT/obj/linux/bin:$PATH"
 export LIBRARY_PATH="$ROOT/obj/linux/lib"
