@@ -571,6 +571,8 @@ public class DXFReader
             case 40:
                if(!strcmp(entityType, "TEXT") || !strcmp(entityType, "MTEXT") || !strcmp(entityType, "DIMENSION"))
                   height = ParseDouble(value);
+               else if(!strcmp(entityType, "ELLIPSE"))
+                  ratio = ParseDouble(value);
                else if(inHatch)
                   hatchEntity.scale = ParseDouble(value);
                else

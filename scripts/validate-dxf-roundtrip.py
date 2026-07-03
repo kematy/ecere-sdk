@@ -5,10 +5,11 @@ Extracts group codes 10, 11, 20, 21, 30, 31, 40, 50, 51, and 42 from the
 ENTITIES section of each file and reports the maximum absolute difference
 between corresponding values (in file order).
 
-Usage: python3 scripts/validate-dxf-roundtrip.py original.dxf roundtrip.dxf
+Usage: python3 scripts/validate-dxf-roundtrip.py original.dxf roundtrip.dxf [--fail-above TOLERANCE]
 """
 from __future__ import annotations
 
+import argparse
 import sys
 
 NUMERIC_CODES = {10, 11, 20, 21, 30, 31, 40, 50, 51, 42}
@@ -51,11 +52,18 @@ def extract_entities_numbers(pairs: list[tuple[int, str]]) -> list[tuple[int, fl
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print("Usage: python3 scripts/validate-dxf-roundtrip.py original.dxf roundtrip.dxf", file=sys.stderr)
-        return 2
+    parser = argparse.ArgumentParser(description="Compare numeric ENTITIES values between two ASCII DXF files.")
+    parser.add_argument("original", help="Original DXF path")
+    parser.add_argument("roundtrip", help="Round-trip DXF path")
+    parser.add_argument(
+        "--fail-above",
+        type=float,
+        default=None,
+        help="Exit with code 1 if max absolute difference exceeds this tolerance",
+    )
+    args = parser.parse_args()
 
-    original_path, roundtrip_path = sys.argv[1], sys.argv[2]
+    original_path, roundtrip_path = args.original, args.roundtrip
 
     try:
         original_values = extract_entities_numbers(read_pairs(original_path))
@@ -97,6 +105,10 @@ def main() -> int:
             f"  at index {max_index} (group {code}): "
             f"{original_value:.15g} vs {roundtrip_value:.15g}"
         )
+
+    if args.fail_above is not None and max_diff > args.fail_above:
+        print(f"FAIL: max difference {max_diff:.15g} exceeds tolerance {args.fail_above:.15g}", file=sys.stderr)
+        return 1
 
     return 0
 

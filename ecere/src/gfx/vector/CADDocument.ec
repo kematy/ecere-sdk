@@ -457,6 +457,100 @@ public:
       return inside;
    }
 
+   VectorPoint LerpPoint(VectorPoint a, VectorPoint b, double t)
+   {
+      return { a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t };
+   }
+
+   bool SegmentEdgeIntersection(VectorPoint a, VectorPoint b, VectorPoint c, VectorPoint d, double * tOut)
+   {
+      double abx = b.x - a.x, aby = b.y - a.y;
+      double cdx = d.x - c.x, cdy = d.y - c.y;
+      double denom = abx * cdy - aby * cdx;
+      double acx, acy, t, u;
+
+      if(VectorIsZero(fabs(denom), VECTOR_GEOM_EPSILON))
+         return false;
+
+      acx = c.x - a.x;
+      acy = c.y - a.y;
+      t = (acx * cdy - acy * cdx) / denom;
+      u = (acx * aby - acy * abx) / denom;
+
+      if(u >= -VECTOR_GEOM_EPSILON && u <= 1.0 + VECTOR_GEOM_EPSILON &&
+         t >= -VECTOR_GEOM_EPSILON && t <= 1.0 + VECTOR_GEOM_EPSILON)
+      {
+         if(tOut)
+            *tOut = t;
+         return true;
+      }
+      return false;
+   }
+
+   void InsertSortedT(double * values, uint * count, double t, uint maxCount)
+   {
+      uint i;
+
+      if(!values || !count || *count >= maxCount)
+         return;
+
+      for(i = 0; i < *count; i++)
+      {
+         if(fabs(values[i] - t) <= VECTOR_GEOM_EPSILON)
+            return;
+      }
+
+      values[*count] = t;
+      (*count)++;
+
+      for(i = *count - 1; i > 0; i--)
+      {
+         if(values[i - 1] <= values[i])
+            break;
+         {
+            double swap = values[i - 1];
+            values[i - 1] = values[i];
+            values[i] = swap;
+         }
+      }
+   }
+
+   void AddClippedHatchSegment(HatchEntity hatch, DisplayLineKind kind, VectorPoint a, VectorPoint b, VectorPoint * polygon, uint count)
+   {
+      double tValues[64];
+      uint tCount = 0;
+      uint i, j, seg;
+
+      tValues[tCount++] = 0;
+      tValues[tCount++] = 1;
+
+      for(i = 0, j = count - 1; i < count; j = i++)
+      {
+         double t;
+         if(SegmentEdgeIntersection(a, b, polygon[j], polygon[i], &t))
+            InsertSortedT(tValues, &tCount, t, sizeof(tValues) / sizeof(tValues[0]));
+      }
+
+      for(seg = 0; seg + 1 < tCount; seg++)
+      {
+         double t0 = tValues[seg];
+         double t1 = tValues[seg + 1];
+         VectorPoint mid = LerpPoint(a, b, (t0 + t1) * 0.5);
+
+         if(PointInPolygon(mid, polygon, count))
+         {
+            VectorPoint segment[2] = { LerpPoint(a, b, t0), LerpPoint(a, b, t1) };
+            DisplayLine display
+            {
+               ownerEntityId = hatch.id, kind = kind, implementation = polyline,
+               closed = false, cachedVersion = hatch.version
+            };
+            display.SetPoints(segment, 2);
+            displayLines.Add(display);
+         }
+      }
+   }
+
    bool AddHatchPatternLines(HatchEntity hatch, DisplayLineKind kind)
    {
       VectorBounds bounds;
@@ -504,19 +598,7 @@ public:
       {
          VectorPoint a = { nx * minProj + px * pos, ny * minProj + py * pos, 0 };
          VectorPoint b = { nx * maxProj + px * pos, ny * maxProj + py * pos, 0 };
-         VectorPoint mid = { (a.x + b.x) * 0.5, (a.y + b.y) * 0.5, 0 };
-
-         if(PointInPolygon(mid, hatch.boundaryPoints, hatch.boundaryPointCount))
-         {
-            VectorPoint segment[2] = { a, b };
-            DisplayLine display
-            {
-               ownerEntityId = hatch.id, kind = kind, implementation = polyline,
-               closed = false, cachedVersion = hatch.version
-            };
-            display.SetPoints(segment, 2);
-            displayLines.Add(display);
-         }
+         AddClippedHatchSegment(hatch, kind, a, b, hatch.boundaryPoints, hatch.boundaryPointCount);
       }
 
       return true;

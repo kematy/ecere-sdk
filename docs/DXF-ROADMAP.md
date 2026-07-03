@@ -40,6 +40,13 @@ DXF / API input
 - Round-trip example:
 
 ```sh
+tools/dxf-roundtrip/obj/debug.linux/DXFRoundTrip sample.dxf roundtrip.dxf
+python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf --fail-above 1e-9
+```
+
+Or via VectorDemo GUI export:
+
+```sh
 ./obj/debug.linux/VectorDemo sample.dxf --export roundtrip.dxf
 python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf
 ```
@@ -54,6 +61,7 @@ python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf
 
 ### Phase 5 — Advanced entities (partial)
 - HATCH fill import/export (solid and named patterns such as ANSI31 with angle/scale)
+- HATCH pattern lines clipped to boundary polygon (segment–edge intersection)
 - DIMENSION linear, aligned, angular, radial, diameter, and ordinate import/export
 - LEADER DXF annotation (exported as polyline)
 - SPLINE from fit/control points
@@ -61,7 +69,8 @@ python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf
 
 ### CI
 - `validate-dxf` job: fixture entity coverage + round-trip numeric self-check
-- `build-vectordemo` job: full SDK build (`DISABLE_SSL=y`) + VectorDemo compile
+- `build-vectordemo` job: full SDK build (`DISABLE_SSL=y`, `ECERE_AUDIO=n`) + VectorDemo compile
+- `build-vectordemo` job: headless `DXFRoundTrip` load/export + numeric round-trip tolerance check
 
 ### Precision handling
 - Coordinates are stored as `double` throughout the semantic model
@@ -92,7 +101,6 @@ On Windows, open `VectorDemo.epj` in the Ecere IDE or use the equivalent
 - Constraint editing
 
 ### Phase 5 — Advanced entities (remaining)
-- True polygon clipping for HATCH pattern lines
 - DIMENSION leaders and full annotation styles
 - SPLINE fit points from DXF
 - Binary DXF and DWG conversion (external tool or library)

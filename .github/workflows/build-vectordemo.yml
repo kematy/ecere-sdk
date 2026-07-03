@@ -38,5 +38,25 @@ jobs:
           make -f VectorDemo.Makefile
           test -f obj/debug.linux/VectorDemo
 
+      - name: Build DXFRoundTrip
+        working-directory: tools/dxf-roundtrip
+        env:
+          LIBRARY_PATH: ${{ github.workspace }}/obj/linux/lib
+          LD_LIBRARY_PATH: ${{ github.workspace }}/obj/linux/lib
+        run: |
+          export PATH="${{ github.workspace }}/obj/linux/bin:$PATH"
+          epj2make -o DXFRoundTrip.Makefile DXFRoundTrip.epj
+          make -f DXFRoundTrip.Makefile
+          test -f obj/debug.linux/DXFRoundTrip
+
       - name: Validate DXF fixture
         run: python3 scripts/validate-dxf-fixture.py samples/guiAndGfx/VectorDemo/sample.dxf
+
+      - name: Validate DXF round-trip
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}/obj/linux/lib
+        run: |
+          export PATH="${{ github.workspace }}/obj/linux/bin:$PATH"
+          ROUNDTRIP="$(mktemp /tmp/roundtrip-XXXXXX.dxf)"
+          tools/dxf-roundtrip/obj/debug.linux/DXFRoundTrip samples/guiAndGfx/VectorDemo/sample.dxf "$ROUNDTRIP"
+          python3 scripts/validate-dxf-roundtrip.py samples/guiAndGfx/VectorDemo/sample.dxf "$ROUNDTRIP" --fail-above 1e-9
