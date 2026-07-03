@@ -1,0 +1,41 @@
+name: Build VectorDemo
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-vectordemo:
+    name: Build SDK and VectorDemo
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential make \
+            zlib1g-dev libpng-dev libjpeg-dev libgif-dev \
+            libncurses-dev libfreetype6-dev \
+            libx11-dev libxrender-dev libgl1-mesa-dev libxext-dev \
+            libsqlite3-dev libffi-dev libfontconfig1-dev
+
+      - name: Build Ecere SDK
+        run: make -j"$(nproc)" DISABLE_SSL=y
+
+      - name: Build VectorDemo
+        working-directory: samples/guiAndGfx/VectorDemo
+        env:
+          PATH: ${{ github.workspace }}/obj/linux/bin:${{ env.PATH }}
+          LIBRARY_PATH: ${{ github.workspace }}/obj/linux/lib
+          LD_LIBRARY_PATH: ${{ github.workspace }}/obj/linux/lib
+        run: |
+          epj2make -o VectorDemo.Makefile VectorDemo.epj
+          make -f VectorDemo.Makefile
+          test -f obj/debug.linux/VectorDemo
+
+      - name: Validate DXF fixture
+        run: python3 scripts/validate-dxf-fixture.py samples/guiAndGfx/VectorDemo/sample.dxf

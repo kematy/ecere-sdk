@@ -53,11 +53,15 @@ python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf
 - Constraint editing remains planned
 
 ### Phase 5 — Advanced entities (partial)
-- HATCH fill import/export (solid, polyline boundary)
-- DIMENSION linear import/export (extension lines + dimension line, simplified horizontal)
+- HATCH fill import/export (solid and named patterns such as ANSI31 with angle/scale)
+- DIMENSION linear, aligned, angular, radial, diameter, and ordinate import/export
 - LEADER DXF annotation (exported as polyline)
 - SPLINE from fit/control points
 - Binary DXF and DWG conversion (external tool or library)
+
+### CI
+- `validate-dxf` job: fixture entity coverage + round-trip numeric self-check
+- `build-vectordemo` job: full SDK build (`DISABLE_SSL=y`) + VectorDemo compile
 
 ### Precision handling
 - Coordinates are stored as `double` throughout the semantic model
@@ -88,8 +92,8 @@ On Windows, open `VectorDemo.epj` in the Ecere IDE or use the equivalent
 - Constraint editing
 
 ### Phase 5 — Advanced entities (remaining)
-- Full DIMENSION types (angular, radial, ordinate)
-- Full HATCH pattern definitions and associative boundaries
+- True polygon clipping for HATCH pattern lines
+- DIMENSION leaders and full annotation styles
 - SPLINE fit points from DXF
 - Binary DXF and DWG conversion (external tool or library)
 

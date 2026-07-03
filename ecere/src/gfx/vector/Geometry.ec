@@ -36,6 +36,16 @@ public enum DisplayLineKind
    artistic
 };
 
+public enum DimensionKind
+{
+   dimensionLinear,
+   dimensionAligned,
+   dimensionAngular,
+   dimensionDiameter,
+   dimensionRadius,
+   dimensionOrdinate
+};
+
 public enum DisplayLineImplementation
 {
    polyline,

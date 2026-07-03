@@ -222,6 +222,8 @@ public:
    {
       Link link;
       bool added = false;
+      DisplayLineKind kind = industrial;
+
       for(link = hatch.boundaryLines.first; link; link = link.next)
       {
          DisplayLine source = (DisplayLine)hatch.boundaryLines.GetData(link);
@@ -241,6 +243,15 @@ public:
             added = true;
          }
       }
+
+      if(hatch.boundaryPointCount >= 3 && hatch.boundaryPoints)
+      {
+         AddHatchOutline(hatch, kind);
+         added = true;
+         if(!hatch.solid || (hatch.hPattern && strcmp(hatch.hPattern, "SOLID")))
+            AddHatchPatternLines(hatch, kind);
+      }
+
       return added;
    }
 
@@ -252,7 +263,132 @@ public:
       if(!dim)
          return false;
 
-      dim.ProjectDimPoints(dim1, dim2);
+      switch(dim.GetKind())
+      {
+         case dimensionAngular:
+         {
+            VectorPoint center = dim.defPoint;
+            double dx1 = dim.extLine1.x - center.x;
+            double dy1 = dim.extLine1.y - center.y;
+            double dx2 = dim.extLine2.x - center.x;
+            double dy2 = dim.extLine2.y - center.y;
+            double r1 = sqrt(dx1 * dx1 + dy1 * dy1);
+            double r2 = sqrt(dx2 * dx2 + dy2 * dy2);
+            double radius = r1 > r2 ? r1 : r2;
+            double a1 = VectorRadiansToDegrees(atan2(dy1, dx1));
+            double a2 = VectorRadiansToDegrees(atan2(dy2, dx2));
+            VectorPoint ray1[2] = { center, dim.extLine1 };
+            VectorPoint ray2[2] = { center, dim.extLine2 };
+
+            if(VectorIsZero(radius, VECTOR_GEOM_EPSILON))
+               radius = 30;
+
+            {
+               DisplayLine display
+               {
+                  ownerEntityId = dim.id, kind = kind, implementation = polyline,
+                  closed = false, cachedVersion = dim.version
+               };
+               display.SetPoints(ray1, 2);
+               displayLines.Add(display);
+            }
+            {
+               DisplayLine display
+               {
+                  ownerEntityId = dim.id, kind = kind, implementation = polyline,
+                  closed = false, cachedVersion = dim.version
+               };
+               display.SetPoints(ray2, 2);
+               displayLines.Add(display);
+            }
+            {
+               DisplayLine display
+               {
+                  ownerEntityId = dim.id, kind = kind, implementation = ellipseArc,
+                  closed = false, cachedVersion = dim.version,
+                  center = center, radiusX = radius, radiusY = radius,
+                  startAngle = a1, endAngle = a2
+               };
+               display.RebuildBounds();
+               displayLines.Add(display);
+            }
+            return true;
+         }
+         case dimensionRadius:
+         {
+            VectorPoint center = dim.defPoint;
+            VectorPoint radiusLine[2] = { center, dim.extLine2 };
+            DisplayLine display
+            {
+               ownerEntityId = dim.id, kind = kind, implementation = polyline,
+               closed = false, cachedVersion = dim.version
+            };
+            display.SetPoints(radiusLine, 2);
+            displayLines.Add(display);
+            return true;
+         }
+         case dimensionDiameter:
+         {
+            VectorPoint center = dim.defPoint;
+            VectorPoint diameterLine[2] =
+            {
+               { 2 * center.x - dim.extLine2.x, 2 * center.y - dim.extLine2.y, center.z },
+               dim.extLine2
+            };
+            DisplayLine display
+            {
+               ownerEntityId = dim.id, kind = kind, implementation = polyline,
+               closed = false, cachedVersion = dim.version
+            };
+            display.SetPoints(diameterLine, 2);
+            displayLines.Add(display);
+            return true;
+         }
+         case dimensionOrdinate:
+         {
+            bool ordinateX = (dim.dimType & 64) != 0;
+            VectorPoint leader[2], tick[2];
+
+            if(ordinateX)
+            {
+               leader[0] = dim.extLine1;
+               leader[1] = { dim.dimLinePoint.x, dim.extLine1.y, dim.extLine1.z };
+               tick[0] = leader[1];
+               tick[1] = dim.dimLinePoint;
+            }
+            else
+            {
+               leader[0] = dim.extLine1;
+               leader[1] = { dim.extLine1.x, dim.dimLinePoint.y, dim.extLine1.z };
+               tick[0] = leader[1];
+               tick[1] = dim.dimLinePoint;
+            }
+
+            {
+               DisplayLine display
+               {
+                  ownerEntityId = dim.id, kind = kind, implementation = polyline,
+                  closed = false, cachedVersion = dim.version
+               };
+               display.SetPoints(leader, 2);
+               displayLines.Add(display);
+            }
+            {
+               DisplayLine display
+               {
+                  ownerEntityId = dim.id, kind = kind, implementation = polyline,
+                  closed = false, cachedVersion = dim.version
+               };
+               display.SetPoints(tick, 2);
+               displayLines.Add(display);
+            }
+            return true;
+         }
+         default:
+            break;
+      }
+
+      dim.ProjectDimPoints(&dim1, &dim2);
       ext1Line[0] = dim.extLine1;
       ext1Line[1] = dim1;
       ext2Line[0] = dim.extLine2;
@@ -287,6 +423,102 @@ public:
          display.SetPoints(dimLine, 2);
          displayLines.Add(display);
       }
+      return true;
+   }
+
+   void AddHatchOutline(HatchEntity hatch, DisplayLineKind kind)
+   {
+      if(hatch.boundaryPointCount >= 3 && hatch.boundaryPoints)
+      {
+         DisplayLine display
+         {
+            ownerEntityId = hatch.id, kind = kind, implementation = polyline,
+            closed = true, cachedVersion = hatch.version
+         };
+         display.SetPoints(hatch.boundaryPoints, hatch.boundaryPointCount);
+         displayLines.Add(display);
+      }
+   }
+
+   bool PointInPolygon(VectorPoint p, VectorPoint * polygon, uint count)
+   {
+      bool inside = false;
+      uint i, j;
+
+      if(!polygon || count < 3)
+         return false;
+
+      for(i = 0, j = count - 1; i < count; j = i++)
+      {
+         if(((polygon[i].y > p.y) != (polygon[j].y > p.y)) &&
+            (p.x < (polygon[j].x - polygon[i].x) * (p.y - polygon[i].y) / (polygon[j].y - polygon[i].y + 1.0e-300) + polygon[i].x))
+            inside = !inside;
+      }
+      return inside;
+   }
+
+   bool AddHatchPatternLines(HatchEntity hatch, DisplayLineKind kind)
+   {
+      VectorBounds bounds;
+      double spacing, angleRad, nx, ny, px, py;
+      double minProj, maxProj, minPerp, maxPerp;
+      double start, end, pos;
+      uint i;
+
+      if(!hatch || hatch.boundaryPointCount < 3 || !hatch.boundaryPoints)
+         return false;
+
+      bounds.Reset();
+      for(i = 0; i < hatch.boundaryPointCount; i++)
+         bounds.IncludePoint(hatch.boundaryPoints[i]);
+
+      spacing = hatch.scale > 0 ? hatch.scale : 3;
+      if(hatch.angle != 0)
+         angleRad = VectorDegreesToRadians(hatch.angle);
+      else if(hatch.hPattern && !strcmp(hatch.hPattern, "ANSI31"))
+         angleRad = VectorDegreesToRadians(45);
+      else
+         angleRad = VectorDegreesToRadians(45);
+
+      nx = cos(angleRad);
+      ny = sin(angleRad);
+      px = -ny;
+      py = nx;
+
+      minProj = maxProj = hatch.boundaryPoints[0].x * nx + hatch.boundaryPoints[0].y * ny;
+      minPerp = maxPerp = hatch.boundaryPoints[0].x * px + hatch.boundaryPoints[0].y * py;
+      for(i = 1; i < hatch.boundaryPointCount; i++)
+      {
+         double proj = hatch.boundaryPoints[i].x * nx + hatch.boundaryPoints[i].y * ny;
+         double perp = hatch.boundaryPoints[i].x * px + hatch.boundaryPoints[i].y * py;
+         if(proj < minProj) minProj = proj;
+         if(proj > maxProj) maxProj = proj;
+         if(perp < minPerp) minPerp = perp;
+         if(perp > maxPerp) maxPerp = perp;
+      }
+
+      minPerp -= spacing;
+      maxPerp += spacing;
+
+      for(pos = minPerp; pos <= maxPerp; pos += spacing)
+      {
+         VectorPoint a = { nx * minProj + px * pos, ny * minProj + py * pos, 0 };
+         VectorPoint b = { nx * maxProj + px * pos, ny * maxProj + py * pos, 0 };
+         VectorPoint mid = { (a.x + b.x) * 0.5, (a.y + b.y) * 0.5, 0 };
+
+         if(PointInPolygon(mid, hatch.boundaryPoints, hatch.boundaryPointCount))
+         {
+            VectorPoint segment[2] = { a, b };
+            DisplayLine display
+            {
+               ownerEntityId = hatch.id, kind = kind, implementation = polyline,
+               closed = false, cachedVersion = hatch.version
+            };
+            display.SetPoints(segment, 2);
+            displayLines.Add(display);
+         }
+      }
+
       return true;
    }
 
@@ -629,6 +861,22 @@ public:
    {
       HatchEntity entity { seed = seed };
       entity.SetName(name);
+      entity.SetHPattern(name);
+      entity.solid = !name || !strcmp(name, "SOLID");
+      entity.SetBoundaryPoints(boundaryPoints, boundaryPointCount);
+      if(layer)
+      {
+         delete entity.layer;
+         entity.layer = CopyString(layer);
+      }
+      return (HatchEntity)AddEntity(entity);
+   }
+
+   HatchEntity CreatePatternHatch(VectorPoint seed, VectorPoint * boundaryPoints, uint boundaryPointCount, const char * pattern, double angle, double scale, const char * layer)
+   {
+      HatchEntity entity { seed = seed, solid = false, angle = angle, scale = scale };
+      entity.SetName(pattern);
+      entity.SetHPattern(pattern);
       entity.SetBoundaryPoints(boundaryPoints, boundaryPointCount);
       if(layer)
       {
@@ -647,6 +895,26 @@ public:
          dimLinePoint = dimLinePoint,
          textMidPoint = textMidPoint,
          defPoint = textMidPoint
+      };
+      entity.SetText(text);
+      if(layer)
+      {
+         delete entity.layer;
+         entity.layer = CopyString(layer);
+      }
+      return (DimensionEntity)AddEntity(entity);
+   }
+
+   DimensionEntity CreateTypedDimension(int dimType, VectorPoint defPoint, VectorPoint extLine1, VectorPoint extLine2, VectorPoint dimLinePoint, VectorPoint textMidPoint, const char * text, const char * layer)
+   {
+      DimensionEntity entity
+      {
+         defPoint = defPoint,
+         extLine1 = extLine1,
+         extLine2 = extLine2,
+         dimLinePoint = dimLinePoint,
+         textMidPoint = textMidPoint,
+         dimType = dimType
       };
       entity.SetText(text);
       if(layer)

@@ -115,9 +115,10 @@ public class SelectionManager
       return null;
    }
 
-   void IncludePoint(VectorBounds & bounds, VectorPoint p)
+   void IncludePoint(VectorBounds * bounds, VectorPoint p)
    {
-      bounds.IncludePoint(p);
+      if(bounds)
+         (*bounds).IncludePoint(p);
    }
 
    VectorPoint ArcEndpoint(VectorPoint center, double radius, double angleDegrees)
@@ -164,11 +165,13 @@ public class SelectionManager
       return 0;
    }
 
-   void AddGrip(InteractionPoint * points, uint & index, VectorPoint p)
+   void AddGrip(InteractionPoint * points, uint * index, VectorPoint p)
    {
-      points[index].kind = grip;
-      points[index].point = p;
-      index++;
+      if(!points || !index)
+         return;
+      points[*index].kind = grip;
+      points[*index].point = p;
+      (*index)++;
    }
 
    VectorPoint MidPoint(VectorPoint a, VectorPoint b)
@@ -176,19 +179,22 @@ public class SelectionManager
       return { (a.x + b.x) * 0.5, (a.y + b.y) * 0.5, (a.z + b.z) * 0.5 };
    }
 
-   void ConsiderSnap(VectorPoint candidate, VectorPoint world, double & bestDistance, InteractionPoint & best, bool & found)
+   void ConsiderSnap(VectorPoint candidate, VectorPoint world, double * bestDistance, InteractionPoint * best, bool * found)
    {
-      double distance = PointDistance(candidate, world);
-      if(distance <= bestDistance)
+      double distance;
+      if(!bestDistance || !best || !found)
+         return;
+      distance = PointDistance(candidate, world);
+      if(distance <= *bestDistance)
       {
-         bestDistance = distance;
-         best.kind = snap;
-         best.point = candidate;
-         found = true;
+         *bestDistance = distance;
+         (*best).kind = snap;
+         (*best).point = candidate;
+         *found = true;
       }
    }
 
-   void CollectEntitySnapPoints(SemanticEntity entity, VectorPoint world, double tolerance, InteractionPoint & best, double & bestDistance, bool & found)
+   void CollectEntitySnapPoints(SemanticEntity entity, VectorPoint world, double tolerance, InteractionPoint * best, double * bestDistance, bool * found)
    {
       if(!entity)
          return;
@@ -198,27 +204,33 @@ public class SelectionManager
          case entityLine:
          {
             LineEntity line = (LineEntity)entity;
+            VectorPoint mid = MidPoint(line.start, line.end);
             ConsiderSnap(line.start, world, bestDistance, best, found);
             ConsiderSnap(line.end, world, bestDistance, best, found);
-            ConsiderSnap(MidPoint(line.start, line.end), world, bestDistance, best, found);
+            ConsiderSnap(mid, world, bestDistance, best, found);
             break;
          }
          case entityCircle:
          {
             CircleEntity circle = (CircleEntity)entity;
+            VectorPoint east = { circle.center.x + circle.radius, circle.center.y, circle.center.z };
+            VectorPoint north = { circle.center.x, circle.center.y + circle.radius, circle.center.z };
             ConsiderSnap(circle.center, world, bestDistance, best, found);
-            ConsiderSnap({ circle.center.x + circle.radius, circle.center.y, circle.center.z }, world, bestDistance, best, found);
-            ConsiderSnap({ circle.center.x, circle.center.y + circle.radius, circle.center.z }, world, bestDistance, best, found);
+            ConsiderSnap(east, world, bestDistance, best, found);
+            ConsiderSnap(north, world, bestDistance, best, found);
             break;
          }
          case entityArc:
          {
             ArcEntity arc = (ArcEntity)entity;
             double midAngle = (arc.startAngle + arc.endAngle) * 0.5;
+            VectorPoint startPt = ArcEndpoint(arc.center, arc.radius, arc.startAngle);
+            VectorPoint endPt = ArcEndpoint(arc.center, arc.radius, arc.endAngle);
+            VectorPoint midPt = ArcEndpoint(arc.center, arc.radius, midAngle);
             ConsiderSnap(arc.center, world, bestDistance, best, found);
-            ConsiderSnap(ArcEndpoint(arc.center, arc.radius, arc.startAngle), world, bestDistance, best, found);
-            ConsiderSnap(ArcEndpoint(arc.center, arc.radius, arc.endAngle), world, bestDistance, best, found);
-            ConsiderSnap(ArcEndpoint(arc.center, arc.radius, midAngle), world, bestDistance, best, found);
+            ConsiderSnap(startPt, world, bestDistance, best, found);
+            ConsiderSnap(endPt, world, bestDistance, best, found);
+            ConsiderSnap(midPt, world, bestDistance, best, found);
             break;
          }
          case entityEllipse:
@@ -239,7 +251,8 @@ public class SelectionManager
                for(c = 0; c < segCount; c++)
                {
                   uint next = (c + 1) % poly.pointCount;
-                  ConsiderSnap(MidPoint(poly.points[c], poly.points[next]), world, bestDistance, best, found);
+                  VectorPoint mid = MidPoint(poly.points[c], poly.points[next]);
+                  ConsiderSnap(mid, world, bestDistance, best, found);
                }
             }
             break;
@@ -253,7 +266,10 @@ public class SelectionManager
                for(c = 0; c < spline.controlPointCount; c++)
                   ConsiderSnap(spline.controlPoints[c], world, bestDistance, best, found);
                for(c = 0; c + 1 < spline.controlPointCount; c++)
-                  ConsiderSnap(MidPoint(spline.controlPoints[c], spline.controlPoints[c + 1]), world, bestDistance, best, found);
+               {
+                  VectorPoint mid = MidPoint(spline.controlPoints[c], spline.controlPoints[c + 1]);
+                  ConsiderSnap(mid, world, bestDistance, best, found);
+               }
             }
             break;
          }
@@ -278,7 +294,10 @@ public class SelectionManager
                for(c = 0; c < leader.pointCount; c++)
                   ConsiderSnap(leader.points[c], world, bestDistance, best, found);
                for(c = 0; c + 1 < leader.pointCount; c++)
-                  ConsiderSnap(MidPoint(leader.points[c], leader.points[c + 1]), world, bestDistance, best, found);
+               {
+                  VectorPoint mid = MidPoint(leader.points[c], leader.points[c + 1]);
+                  ConsiderSnap(mid, world, bestDistance, best, found);
+               }
             }
             break;
          }
@@ -294,7 +313,8 @@ public class SelectionManager
                for(c = 0; c < segCount; c++)
                {
                   uint next = (c + 1) % hatch.boundaryPointCount;
-                  ConsiderSnap(MidPoint(hatch.boundaryPoints[c], hatch.boundaryPoints[next]), world, bestDistance, best, found);
+                  VectorPoint mid = MidPoint(hatch.boundaryPoints[c], hatch.boundaryPoints[next]);
+                  ConsiderSnap(mid, world, bestDistance, best, found);
                }
             }
             else
@@ -305,56 +325,64 @@ public class SelectionManager
          {
             DimensionEntity dim = (DimensionEntity)entity;
             VectorPoint dim1, dim2;
-            dim.ProjectDimPoints(dim1, dim2);
+            dim.ProjectDimPoints(&dim1, &dim2);
+            ConsiderSnap(dim.defPoint, world, bestDistance, best, found);
             ConsiderSnap(dim.extLine1, world, bestDistance, best, found);
             ConsiderSnap(dim.extLine2, world, bestDistance, best, found);
             ConsiderSnap(dim1, world, bestDistance, best, found);
             ConsiderSnap(dim2, world, bestDistance, best, found);
-            ConsiderSnap(MidPoint(dim1, dim2), world, bestDistance, best, found);
+            {
+               VectorPoint mid = MidPoint(dim1, dim2);
+               ConsiderSnap(mid, world, bestDistance, best, found);
+            }
             ConsiderSnap(dim.textMidPoint, world, bestDistance, best, found);
             break;
          }
       }
    }
 
-   void FillGripPoints(SemanticEntity entity, InteractionPoint * points, VectorBounds & bounds)
+   void FillGripPoints(SemanticEntity entity, InteractionPoint * points, VectorBounds * bounds)
    {
       uint index = 0;
 
-      if(!entity || !points)
+      if(!entity || !points || !bounds)
          return;
 
-      bounds.Reset();
+      (*bounds).Reset();
 
       switch(entity.type)
       {
          case entityLine:
          {
             LineEntity line = (LineEntity)entity;
-            AddGrip(points, index, line.start);
-            AddGrip(points, index, line.end);
+            AddGrip(points, &index, line.start);
+            AddGrip(points, &index, line.end);
             break;
          }
          case entityCircle:
          {
             CircleEntity circle = (CircleEntity)entity;
-            AddGrip(points, index, circle.center);
-            AddGrip(points, index, { circle.center.x + circle.radius, circle.center.y, circle.center.z });
+            VectorPoint east = { circle.center.x + circle.radius, circle.center.y, circle.center.z };
+            AddGrip(points, &index, circle.center);
+            AddGrip(points, &index, east);
             break;
          }
          case entityArc:
          {
             ArcEntity arc = (ArcEntity)entity;
-            AddGrip(points, index, arc.center);
-            AddGrip(points, index, ArcEndpoint(arc.center, arc.radius, arc.startAngle));
-            AddGrip(points, index, ArcEndpoint(arc.center, arc.radius, arc.endAngle));
+            VectorPoint startPt = ArcEndpoint(arc.center, arc.radius, arc.startAngle);
+            VectorPoint endPt = ArcEndpoint(arc.center, arc.radius, arc.endAngle);
+            AddGrip(points, &index, arc.center);
+            AddGrip(points, &index, startPt);
+            AddGrip(points, &index, endPt);
             break;
          }
          case entityEllipse:
          {
             EllipseEntity ellipse = (EllipseEntity)entity;
-            AddGrip(points, index, ellipse.center);
-            AddGrip(points, index, { ellipse.center.x + ellipse.radiusX, ellipse.center.y, ellipse.center.z });
+            VectorPoint axis = { ellipse.center.x + ellipse.radiusX, ellipse.center.y, ellipse.center.z };
+            AddGrip(points, &index, ellipse.center);
+            AddGrip(points, &index, axis);
             break;
          }
          case entityPolyline:
@@ -362,7 +390,7 @@ public class SelectionManager
             PolylineEntity poly = (PolylineEntity)entity;
             uint c;
             for(c = 0; c < poly.pointCount; c++)
-               AddGrip(points, index, poly.points[c]);
+               AddGrip(points, &index, poly.points[c]);
             break;
          }
          case entitySpline:
@@ -370,19 +398,19 @@ public class SelectionManager
             SplineEntity spline = (SplineEntity)entity;
             uint c;
             for(c = 0; c < spline.controlPointCount; c++)
-               AddGrip(points, index, spline.controlPoints[c]);
+               AddGrip(points, &index, spline.controlPoints[c]);
             break;
          }
          case entityText:
          {
             TextEntity text = (TextEntity)entity;
-            AddGrip(points, index, text.position);
+            AddGrip(points, &index, text.position);
             break;
          }
          case entityInsert:
          {
             InsertEntity insert = (InsertEntity)entity;
-            AddGrip(points, index, insert.position);
+            AddGrip(points, &index, insert.position);
             break;
          }
          case entityLeader:
@@ -390,7 +418,7 @@ public class SelectionManager
             LeaderEntity leader = (LeaderEntity)entity;
             uint c;
             for(c = 0; c < leader.pointCount; c++)
-               AddGrip(points, index, leader.points[c]);
+               AddGrip(points, &index, leader.points[c]);
             break;
          }
          case entityHatch:
@@ -400,19 +428,19 @@ public class SelectionManager
             {
                uint c;
                for(c = 0; c < hatch.boundaryPointCount; c++)
-                  AddGrip(points, index, hatch.boundaryPoints[c]);
+                  AddGrip(points, &index, hatch.boundaryPoints[c]);
             }
             else
-               AddGrip(points, index, hatch.seed);
+               AddGrip(points, &index, hatch.seed);
             break;
          }
          case entityDimension:
          {
             DimensionEntity dim = (DimensionEntity)entity;
-            AddGrip(points, index, dim.extLine1);
-            AddGrip(points, index, dim.extLine2);
-            AddGrip(points, index, dim.dimLinePoint);
-            AddGrip(points, index, dim.textMidPoint);
+            AddGrip(points, &index, dim.extLine1);
+            AddGrip(points, &index, dim.extLine2);
+            AddGrip(points, &index, dim.dimLinePoint);
+            AddGrip(points, &index, dim.textMidPoint);
             break;
          }
       }
@@ -460,7 +488,7 @@ public class SelectionManager
       overlay.pointCount = count;
       overlay.points = count ? new InteractionPoint[count] : null;
       if(entity && overlay.points)
-         FillGripPoints(entity, overlay.points, overlay.selectionBounds);
+         FillGripPoints(entity, overlay.points, &overlay.selectionBounds);
 
       return overlay;
    }
@@ -487,24 +515,29 @@ public class SelectionManager
       return best;
    }
 
-   public bool PickSnap(CADDocument doc, VectorPoint world, double tolerance, InteractionPoint & result)
+   public bool PickSnap(CADDocument doc, VectorPoint world, double tolerance, InteractionPoint * result)
    {
       Link link;
       double bestDistance = tolerance;
       bool found = false;
-      InteractionPoint best = { };
+      InteractionPoint best;
+      best.kind = snap;
+      best.point = { 0, 0, 0 };
 
-      if(!doc || tolerance <= 0)
+      if(!doc || tolerance <= 0 || !result)
          return false;
 
       for(link = doc.entities.first; link; link = link.next)
       {
          SemanticEntity entity = (SemanticEntity)doc.entities.GetData(link);
-         CollectEntitySnapPoints(entity, world, tolerance, best, bestDistance, found);
+         CollectEntitySnapPoints(entity, world, tolerance, &best, &bestDistance, &found);
       }
 
       if(found)
-         result = best;
+      {
+         (*result).kind = best.kind;
+         (*result).point = best.point;
+      }
       return found;
    }
 

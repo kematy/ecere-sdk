@@ -48,6 +48,16 @@ class VectorDemo : Window
       document.CreateText({ 20, 220, 0 }, { 20, 220, 0 }, "Hello", 12, "STANDARD", "ANNOTATION");
       document.CreateHatch({ 320, 150, 0 }, hatchBoundary, 4, "SOLID", "OBJECTS");
       document.CreateDimension({ 400, 0, 0 }, { 500, 0, 0 }, { 450, 20, 0 }, { 450, 22, 0 }, "120", "ANNOTATION");
+      document.CreateTypedDimension(4, { 160, 60, 0 }, { 160, 60, 0 }, { 195, 60, 0 }, { 195, 85, 0 }, { 180, 88, 0 }, "R35", "ANNOTATION");
+      document.CreateTypedDimension(2, { 220, 60, 0 }, { 250, 60, 0 }, { 220, 90, 0 }, { 235, 95, 0 }, { 230, 98, 0 }, "90", "ANNOTATION");
+      document.CreateTypedDimension(64 + 6, { 300, 0, 0 }, { 300, 0, 0 }, { 300, 0, 0 }, { 340, 0, 0 }, { 350, 5, 0 }, "300", "ANNOTATION");
+      {
+         VectorPoint patternBoundary[4] =
+         {
+            { 400, 120, 0 }, { 480, 120, 0 }, { 480, 180, 0 }, { 400, 180, 0 }
+         };
+         document.CreatePatternHatch({ 440, 150, 0 }, patternBoundary, 4, "ANSI31", 45, 4, "OBJECTS");
+      }
       document.RebuildSemanticDisplayLines();
    }
 
@@ -183,7 +193,7 @@ class VectorDemo : Window
          {
             draggingGrip = true;
             dragGripIndex = gripIndex;
-            sprintf(statusText, "Dragging grip %d on %s #" FORMAT64U, gripIndex, EntityTypeName(selectedEntity.type), selectedEntity.id);
+            sprintf(statusText, "Dragging grip %d on %s #%llu", gripIndex, EntityTypeName(selectedEntity.type), selectedEntity.id);
             return true;
          }
       }
@@ -197,7 +207,7 @@ class VectorDemo : Window
       if(selectedEntity)
       {
          overlay = selection.BuildOverlay(selectedEntity);
-         sprintf(statusText, "Selected %s #" FORMAT64U " (%d grips)", EntityTypeName(selectedEntity.type), selectedEntity.id, overlay ? overlay.pointCount : 0);
+         sprintf(statusText, "Selected %s #%llu (%d grips)", EntityTypeName(selectedEntity.type), selectedEntity.id, overlay ? overlay.pointCount : 0);
       }
       else
          sprintf(statusText, "No entity at click (world %.4f, %.4f)", world.x, world.y);
@@ -213,7 +223,7 @@ class VectorDemo : Window
          draggingGrip = false;
          dragGripIndex = -1;
          if(selectedEntity)
-            sprintf(statusText, "Updated %s #" FORMAT64U, EntityTypeName(selectedEntity.type), selectedEntity.id);
+            sprintf(statusText, "Updated %s", EntityTypeName(selectedEntity.type));
       }
       return true;
    }
@@ -228,7 +238,7 @@ class VectorDemo : Window
 
       if(draggingGrip && selectedEntity && dragGripIndex >= 0)
       {
-         if(selection.PickSnap(document, world, PickTolerance(), snap))
+         if(selection.PickSnap(document, world, PickTolerance(), &snap))
             world = snap.point;
 
          if(selection.ApplyGripMove(selectedEntity, dragGripIndex, world))
@@ -240,7 +250,7 @@ class VectorDemo : Window
          return true;
       }
 
-      hasHoverSnap = selection.PickSnap(document, world, PickTolerance(), hoverSnap);
+      hasHoverSnap = selection.PickSnap(document, world, PickTolerance(), &hoverSnap);
       Update(null);
       return true;
    }
