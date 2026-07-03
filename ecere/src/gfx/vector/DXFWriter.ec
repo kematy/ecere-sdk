@@ -12,22 +12,22 @@ public class DXFWriter
 
    void WritePairInt(File f, int code, int value)
    {
-      f.PrintLn("%d", code);
-      f.PrintLn("%d", value);
+      f.Printf("%d\n", code);
+      f.Printf("%d\n", value);
    }
 
    void WritePairDouble(File f, int code, double value)
    {
       char buffer[64];
       FormatDXFDouble(buffer, sizeof(buffer), value);
-      f.PrintLn("%d", code);
-      f.PrintLn("%s", buffer);
+      f.Printf("%d\n", code);
+      f.Printf("%s\n", buffer);
    }
 
    void WritePairString(File f, int code, const char * value)
    {
-      f.PrintLn("%d", code);
-      f.PrintLn("%s", value ? value : "");
+      f.Printf("%d\n", code);
+      f.Printf("%s\n", value ? value : "");
    }
 
    void WriteCommonProperties(File f, SemanticEntity entity)
