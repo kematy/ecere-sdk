@@ -21,7 +21,8 @@ jobs:
             zlib1g-dev libpng-dev libjpeg-dev libgif-dev \
             libncurses-dev libfreetype6-dev \
             libx11-dev libxrender-dev libgl1-mesa-dev libxext-dev \
-            libsqlite3-dev libffi-dev libfontconfig1-dev
+            libsqlite3-dev libffi-dev libfontconfig1-dev \
+            libcurl4-openssl-dev
 
       - name: Build Ecere SDK
         run: make -j"$(nproc)" DISABLE_SSL=y
