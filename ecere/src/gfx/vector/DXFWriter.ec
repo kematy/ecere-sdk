@@ -1,5 +1,6 @@
 namespace gfx::vector;
 
+import "ecere"
 import "Geometry"
 import "CADDocument"
 
@@ -172,6 +173,13 @@ public class DXFWriter
          WritePairDouble(f, 30, entity.seed.z);
       WritePairString(f, 2, entity.hPattern ? entity.hPattern : (entity.name ? entity.name : "SOLID"));
       WritePairInt(f, 70, entity.solid ? 1 : 0);
+      if(!entity.solid)
+      {
+         if(!VectorIsZero(entity.scale, VECTOR_COORD_EPSILON))
+            WritePairDouble(f, 41, entity.scale);
+         if(!VectorIsZero(entity.angle, VECTOR_COORD_EPSILON))
+            WritePairDouble(f, 52, entity.angle);
+      }
       WritePairInt(f, 91, 1);
       WritePairInt(f, 93, (int)entity.boundaryPointCount);
 
@@ -299,7 +307,7 @@ public class DXFWriter
 
    bool Save(CADDocument document, const char * fileName)
    {
-      File f { };
+      File f;
 
       lastError[0] = 0;
 
@@ -309,7 +317,7 @@ public class DXFWriter
          return false;
       }
 
-      if(!f.Open(fileName, write))
+      if(!(f = FileOpen(fileName, write)))
       {
          sprintf(lastError, "Unable to create file: %s", fileName);
          return false;
@@ -317,11 +325,11 @@ public class DXFWriter
 
       WriteHeaderSection(f);
       if(document.blocks.count)
-         WriteBlocksSection(f);
-      WriteEntitiesSection(f);
+         WriteBlocksSection(f, document);
+      WriteEntitiesSection(f, document);
       WritePairString(f, 0, "EOF");
 
-      f.Close();
+      delete f;
       return true;
    }
 

@@ -1,5 +1,6 @@
 namespace gfx::vector;
 
+import "ecere"
 import "Geometry"
 import "CADDocument"
 
@@ -25,12 +26,14 @@ public class DXFReader
    int color;
    char lastError[512];
 
-   bool ReadPair(File f, int &code, char * value, int valueSize)
+   bool ReadPair(File f, int * code, char * value, int valueSize)
    {
       char line[256];
+      if(!f || !code || !value)
+         return false;
       if(!f.GetLine(line, sizeof(line)))
          return false;
-      code = atoi(line);
+      (*code) = atoi(line);
       if(!f.GetLine(value, valueSize))
          return false;
       return true;
@@ -319,13 +322,13 @@ public class DXFReader
          return false;
       }
 
-      if(!f.Open(fileName, read))
+      if(!(f = FileOpen(fileName, read)))
       {
          sprintf(lastError, "Unable to open file: %s", fileName);
          return false;
       }
 
-      while(ReadPair(f, code, value, sizeof(value)))
+      while(ReadPair(f, &code, value, sizeof(value)))
       {
          pairCount++;
 
@@ -568,10 +571,17 @@ public class DXFReader
             case 40:
                if(!strcmp(entityType, "TEXT") || !strcmp(entityType, "MTEXT") || !strcmp(entityType, "DIMENSION"))
                   height = ParseDouble(value);
+               else if(inHatch)
+                  hatchEntity.scale = ParseDouble(value);
                else
                   radius = ParseDouble(value);
                break;
-            case 41: xScale = ParseDouble(value); break;
+            case 41:
+               if(inHatch)
+                  hatchEntity.scale = ParseDouble(value);
+               else
+                  xScale = ParseDouble(value);
+               break;
             case 42:
                if(inPolyline)
                   bulge = ParseDouble(value);
@@ -582,8 +592,14 @@ public class DXFReader
             case 50:
                if(!strcmp(entityType, "TEXT") || !strcmp(entityType, "MTEXT"))
                   angle = ParseDouble(value);
+               else if(inHatch)
+                  hatchEntity.angle = ParseDouble(value);
                else
                   startAngle = ParseDouble(value);
+               break;
+            case 52:
+               if(inHatch)
+                  hatchEntity.angle = ParseDouble(value);
                break;
             case 51: endAngle = ParseDouble(value); break;
             case 70:
@@ -627,7 +643,7 @@ public class DXFReader
                xScale, yScale, zScale, angle, height);
       }
 
-      f.Close();
+      delete f;
 
       if(pairCount < 2)
       {

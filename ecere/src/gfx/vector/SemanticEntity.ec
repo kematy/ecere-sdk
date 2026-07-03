@@ -538,10 +538,59 @@ public:
       Touch();
    }
 
-   void ProjectDimPoints(VectorPoint & dim1, VectorPoint & dim2)
+   DimensionKind GetKind()
    {
-      dim1 = { extLine1.x, dimLinePoint.y, extLine1.z };
-      dim2 = { extLine2.x, dimLinePoint.y, extLine2.z };
+      int base = dimType & 7;
+      if(base == 1) return dimensionAligned;
+      if(base == 2) return dimensionAngular;
+      if(base == 3) return dimensionDiameter;
+      if(base == 4) return dimensionRadius;
+      if(base == 6) return dimensionOrdinate;
+      return dimensionLinear;
+   }
+
+   void ProjectDimPoints(VectorPoint * dim1, VectorPoint * dim2)
+   {
+      if(!dim1 || !dim2)
+         return;
+
+      if(GetKind() == dimensionAligned)
+      {
+         double dx = extLine2.x - extLine1.x;
+         double dy = extLine2.y - extLine1.y;
+         double len = sqrt(dx * dx + dy * dy);
+         double nx, ny, offset;
+
+         if(VectorIsZero(len, VECTOR_GEOM_EPSILON))
+         {
+            (*dim1).x = extLine1.x;
+            (*dim1).y = dimLinePoint.y;
+            (*dim1).z = extLine1.z;
+            (*dim2).x = extLine2.x;
+            (*dim2).y = dimLinePoint.y;
+            (*dim2).z = extLine2.z;
+            return;
+         }
+
+         nx = -dy / len;
+         ny = dx / len;
+         offset = (dimLinePoint.x - extLine1.x) * nx + (dimLinePoint.y - extLine1.y) * ny;
+         (*dim1).x = extLine1.x + nx * offset;
+         (*dim1).y = extLine1.y + ny * offset;
+         (*dim1).z = extLine1.z;
+         (*dim2).x = extLine2.x + nx * offset;
+         (*dim2).y = extLine2.y + ny * offset;
+         (*dim2).z = extLine2.z;
+      }
+      else
+      {
+         (*dim1).x = extLine1.x;
+         (*dim1).y = dimLinePoint.y;
+         (*dim1).z = extLine1.z;
+         (*dim2).x = extLine2.x;
+         (*dim2).y = dimLinePoint.y;
+         (*dim2).z = extLine2.z;
+      }
    }
 
    DisplayLine CreateDisplayLine(DisplayLineKind kind)
@@ -549,7 +598,7 @@ public:
       VectorPoint dim1, dim2;
       VectorPoint points[2];
 
-      ProjectDimPoints(dim1, dim2);
+      ProjectDimPoints(&dim1, &dim2);
       points[0] = dim1;
       points[1] = dim2;
       DisplayLine display { ownerEntityId = id, kind = kind, implementation = polyline, closed = false, cachedVersion = version };
