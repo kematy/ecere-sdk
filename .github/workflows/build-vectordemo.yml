@@ -30,10 +30,10 @@ jobs:
       - name: Build VectorDemo
         working-directory: samples/guiAndGfx/VectorDemo
         env:
-          PATH: ${{ github.workspace }}/obj/linux/bin:${{ env.PATH }}
           LIBRARY_PATH: ${{ github.workspace }}/obj/linux/lib
           LD_LIBRARY_PATH: ${{ github.workspace }}/obj/linux/lib
         run: |
+          export PATH="${{ github.workspace }}/obj/linux/bin:$PATH"
           epj2make -o VectorDemo.Makefile VectorDemo.epj
           make -f VectorDemo.Makefile
           test -f obj/debug.linux/VectorDemo
