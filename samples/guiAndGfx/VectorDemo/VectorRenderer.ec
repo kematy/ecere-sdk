@@ -174,14 +174,39 @@ public:
 
       if(!overlay || !overlay.points) return;
 
-      surface.SetForeground(Color { 220, 40, 40 });
       for(c = 0; c < overlay.pointCount; c++)
       {
          Point sp = ToScreen(overlay.points[c].point);
-         surface.DrawLine(sp.x - gripSize, sp.y - gripSize, sp.x + gripSize, sp.y - gripSize);
-         surface.DrawLine(sp.x + gripSize, sp.y - gripSize, sp.x + gripSize, sp.y + gripSize);
-         surface.DrawLine(sp.x + gripSize, sp.y + gripSize, sp.x - gripSize, sp.y + gripSize);
-         surface.DrawLine(sp.x - gripSize, sp.y + gripSize, sp.x - gripSize, sp.y - gripSize);
+
+         if(overlay.points[c].kind == snap)
+         {
+            int snapSize = 5;
+            surface.SetForeground(Color { 20, 180, 80 });
+            surface.DrawLine(sp.x, sp.y - snapSize, sp.x + snapSize, sp.y);
+            surface.DrawLine(sp.x + snapSize, sp.y, sp.x, sp.y + snapSize);
+            surface.DrawLine(sp.x, sp.y + snapSize, sp.x - snapSize, sp.y);
+            surface.DrawLine(sp.x - snapSize, sp.y, sp.x, sp.y - snapSize);
+         }
+         else
+         {
+            surface.SetForeground(Color { 220, 40, 40 });
+            surface.DrawLine(sp.x - gripSize, sp.y - gripSize, sp.x + gripSize, sp.y - gripSize);
+            surface.DrawLine(sp.x + gripSize, sp.y - gripSize, sp.x + gripSize, sp.y + gripSize);
+            surface.DrawLine(sp.x + gripSize, sp.y + gripSize, sp.x - gripSize, sp.y + gripSize);
+            surface.DrawLine(sp.x - gripSize, sp.y + gripSize, sp.x - gripSize, sp.y - gripSize);
+         }
       }
+   }
+
+   void DrawSnapPoint(Surface surface, VectorPoint worldPoint)
+   {
+      int snapSize = 5;
+      Point sp = ToScreen(worldPoint);
+
+      surface.SetForeground(Color { 20, 180, 80 });
+      surface.DrawLine(sp.x, sp.y - snapSize, sp.x + snapSize, sp.y);
+      surface.DrawLine(sp.x + snapSize, sp.y, sp.x, sp.y + snapSize);
+      surface.DrawLine(sp.x, sp.y + snapSize, sp.x - snapSize, sp.y);
+      surface.DrawLine(sp.x - snapSize, sp.y, sp.x, sp.y - snapSize);
    }
 };

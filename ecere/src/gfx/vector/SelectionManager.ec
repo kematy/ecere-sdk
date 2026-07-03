@@ -170,6 +170,139 @@ public class SelectionManager
       index++;
    }
 
+   VectorPoint MidPoint(VectorPoint a, VectorPoint b)
+   {
+      return { (a.x + b.x) * 0.5, (a.y + b.y) * 0.5, (a.z + b.z) * 0.5 };
+   }
+
+   void ConsiderSnap(VectorPoint candidate, VectorPoint world, double & bestDistance, InteractionPoint & best, bool & found)
+   {
+      double distance = PointDistance(candidate, world);
+      if(distance <= bestDistance)
+      {
+         bestDistance = distance;
+         best.kind = snap;
+         best.point = candidate;
+         found = true;
+      }
+   }
+
+   void CollectEntitySnapPoints(SemanticEntity entity, VectorPoint world, double tolerance, InteractionPoint & best, double & bestDistance, bool & found)
+   {
+      if(!entity)
+         return;
+
+      switch(entity.type)
+      {
+         case entityLine:
+         {
+            LineEntity line = (LineEntity)entity;
+            ConsiderSnap(line.start, world, bestDistance, best, found);
+            ConsiderSnap(line.end, world, bestDistance, best, found);
+            ConsiderSnap(MidPoint(line.start, line.end), world, bestDistance, best, found);
+            break;
+         }
+         case entityCircle:
+         {
+            CircleEntity circle = (CircleEntity)entity;
+            ConsiderSnap(circle.center, world, bestDistance, best, found);
+            ConsiderSnap({ circle.center.x + circle.radius, circle.center.y, circle.center.z }, world, bestDistance, best, found);
+            ConsiderSnap({ circle.center.x, circle.center.y + circle.radius, circle.center.z }, world, bestDistance, best, found);
+            break;
+         }
+         case entityArc:
+         {
+            ArcEntity arc = (ArcEntity)entity;
+            double midAngle = (arc.startAngle + arc.endAngle) * 0.5;
+            ConsiderSnap(arc.center, world, bestDistance, best, found);
+            ConsiderSnap(ArcEndpoint(arc.center, arc.radius, arc.startAngle), world, bestDistance, best, found);
+            ConsiderSnap(ArcEndpoint(arc.center, arc.radius, arc.endAngle), world, bestDistance, best, found);
+            ConsiderSnap(ArcEndpoint(arc.center, arc.radius, midAngle), world, bestDistance, best, found);
+            break;
+         }
+         case entityEllipse:
+         {
+            EllipseEntity ellipse = (EllipseEntity)entity;
+            ConsiderSnap(ellipse.center, world, bestDistance, best, found);
+            break;
+         }
+         case entityPolyline:
+         {
+            PolylineEntity poly = (PolylineEntity)entity;
+            uint c, segCount;
+            if(poly.pointCount && poly.points)
+            {
+               for(c = 0; c < poly.pointCount; c++)
+                  ConsiderSnap(poly.points[c], world, bestDistance, best, found);
+               segCount = poly.closed ? poly.pointCount : (poly.pointCount > 1 ? poly.pointCount - 1 : 0);
+               for(c = 0; c < segCount; c++)
+               {
+                  uint next = (c + 1) % poly.pointCount;
+                  ConsiderSnap(MidPoint(poly.points[c], poly.points[next]), world, bestDistance, best, found);
+               }
+            }
+            break;
+         }
+         case entitySpline:
+         {
+            SplineEntity spline = (SplineEntity)entity;
+            uint c;
+            if(spline.controlPointCount && spline.controlPoints)
+            {
+               for(c = 0; c < spline.controlPointCount; c++)
+                  ConsiderSnap(spline.controlPoints[c], world, bestDistance, best, found);
+               for(c = 0; c + 1 < spline.controlPointCount; c++)
+                  ConsiderSnap(MidPoint(spline.controlPoints[c], spline.controlPoints[c + 1]), world, bestDistance, best, found);
+            }
+            break;
+         }
+         case entityText:
+         {
+            TextEntity text = (TextEntity)entity;
+            ConsiderSnap(text.position, world, bestDistance, best, found);
+            break;
+         }
+         case entityInsert:
+         {
+            InsertEntity insert = (InsertEntity)entity;
+            ConsiderSnap(insert.position, world, bestDistance, best, found);
+            break;
+         }
+         case entityLeader:
+         {
+            LeaderEntity leader = (LeaderEntity)entity;
+            uint c;
+            if(leader.pointCount && leader.points)
+            {
+               for(c = 0; c < leader.pointCount; c++)
+                  ConsiderSnap(leader.points[c], world, bestDistance, best, found);
+               for(c = 0; c + 1 < leader.pointCount; c++)
+                  ConsiderSnap(MidPoint(leader.points[c], leader.points[c + 1]), world, bestDistance, best, found);
+            }
+            break;
+         }
+         case entityHatch:
+         {
+            HatchEntity hatch = (HatchEntity)entity;
+            uint c, segCount;
+            if(hatch.boundaryPointCount && hatch.boundaryPoints)
+            {
+               for(c = 0; c < hatch.boundaryPointCount; c++)
+                  ConsiderSnap(hatch.boundaryPoints[c], world, bestDistance, best, found);
+               segCount = hatch.boundaryPointCount;
+               for(c = 0; c < segCount; c++)
+               {
+                  uint next = (c + 1) % hatch.boundaryPointCount;
+                  ConsiderSnap(MidPoint(hatch.boundaryPoints[c], hatch.boundaryPoints[next]), world, bestDistance, best, found);
+               }
+            }
+            else
+               ConsiderSnap(hatch.seed, world, bestDistance, best, found);
+            break;
+         }
+      }
+   }
+
    void FillGripPoints(SemanticEntity entity, InteractionPoint * points, VectorBounds & bounds)
    {
       uint index = 0;
@@ -329,6 +462,27 @@ public class SelectionManager
       }
 
       return best;
+   }
+
+   public bool PickSnap(CADDocument doc, VectorPoint world, double tolerance, InteractionPoint & result)
+   {
+      Link link;
+      double bestDistance = tolerance;
+      bool found = false;
+      InteractionPoint best = { };
+
+      if(!doc || tolerance <= 0)
+         return false;
+
+      for(link = doc.entities.first; link; link = link.next)
+      {
+         SemanticEntity entity = (SemanticEntity)doc.entities.GetData(link);
+         CollectEntitySnapPoints(entity, world, tolerance, best, bestDistance, found);
+      }
+
+      if(found)
+         result = best;
+      return found;
    }
 
    public bool ApplyGripMove(SemanticEntity entity, int gripIndex, VectorPoint newPoint)

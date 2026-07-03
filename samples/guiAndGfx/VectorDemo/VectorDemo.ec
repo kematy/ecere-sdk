@@ -21,6 +21,8 @@ class VectorDemo : Window
    char statusText[512];
    bool draggingGrip;
    int dragGripIndex;
+   bool hasHoverSnap;
+   InteractionPoint hoverSnap;
 
    void BuildBuiltinDemo()
    {
@@ -91,6 +93,7 @@ class VectorDemo : Window
       statusText[0] = 0;
       draggingGrip = false;
       dragGripIndex = -1;
+      hasHoverSnap = false;
 
       for(c = 1; c < app.argc; c++)
       {
@@ -216,20 +219,27 @@ class VectorDemo : Window
    bool OnMouseMove(int x, int y, Modifiers mods)
    {
       VectorPoint world;
-
-      if(!draggingGrip || !selectedEntity || dragGripIndex < 0)
-         return true;
+      InteractionPoint snap;
 
       EnsureRendererFit();
       world = renderer.ScreenToWorld({ x, y });
 
-      if(selection.ApplyGripMove(selectedEntity, dragGripIndex, world))
+      if(draggingGrip && selectedEntity && dragGripIndex >= 0)
       {
-         document.RebuildSemanticDisplayLines();
-         RefreshOverlay();
-         Update(null);
+         if(selection.PickSnap(document, world, PickTolerance(), snap))
+            world = snap.point;
+
+         if(selection.ApplyGripMove(selectedEntity, dragGripIndex, world))
+         {
+            document.RebuildSemanticDisplayLines();
+            RefreshOverlay();
+            Update(null);
+         }
+         return true;
       }
 
+      hasHoverSnap = selection.PickSnap(document, world, PickTolerance(), hoverSnap);
+      Update(null);
       return true;
    }
 
@@ -244,6 +254,9 @@ class VectorDemo : Window
             renderer.DrawInteractionOverlay(surface, overlay);
       }
 
+      if(hasHoverSnap)
+         renderer.DrawSnapPoint(surface, hoverSnap.point);
+
       surface.SetForeground(black);
       surface.WriteTextf(12, 10, "%s", statusText);
       surface.SetForeground(Color { 30, 30, 30 });
@@ -251,7 +264,7 @@ class VectorDemo : Window
       surface.SetForeground(Color { 30, 90, 210 });
       surface.WriteTextf(140, 28, "artistic (blue)");
       surface.SetForeground(Color { 100, 100, 100 });
-      surface.WriteTextf(12, clientSize.h - 20, "Click to select; drag red grips to edit");
+      surface.WriteTextf(12, clientSize.h - 20, "Click to select; drag red grips; green diamond = snap (endpoint/midpoint/center)");
    }
 }
 

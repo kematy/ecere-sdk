@@ -48,8 +48,9 @@ python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf
 - `SelectionManager.ec` picks entities by display-line distance and builds grip overlays
 - `VectorDemo` supports click-to-select with highlight and grip drawing
 - Grip drag editing: pick a grip, drag to modify entity geometry (LINE, CIRCLE, ARC, ELLIPSE, POLYLINE, SPLINE, TEXT, INSERT, LEADER, HATCH)
-- `VectorRenderer` provides `ScreenToWorld`, `DrawSelectedEntity`, and `DrawInteractionOverlay`
-- Snap points and constraint editing remain planned
+- Snap points on hover: endpoint, midpoint, and center (green diamond); grip drag snaps when near a snap point
+- `VectorRenderer` provides `ScreenToWorld`, `DrawSelectedEntity`, `DrawInteractionOverlay`, and `DrawSnapPoint`
+- Constraint editing remains planned
 
 ### Phase 5 — Advanced entities (partial)
 - HATCH fill import/export (solid, polyline boundary)
@@ -83,7 +84,7 @@ On Windows, open `VectorDemo.epj` in the Ecere IDE or use the equivalent
 ## Next phases
 
 ### Phase 4 — Interaction (remaining)
-- Snap points and constraint editing
+- Constraint editing
 
 ### Phase 5 — Advanced entities (remaining)
 - DIMENSION annotation
