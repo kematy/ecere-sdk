@@ -19,3 +19,21 @@ jobs:
 
       - name: Validate .epj project files
         run: python3 scripts/validate-epj.py .
+
+  validate-dxf:
+    name: Validate DXF fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate VectorDemo sample.dxf entity coverage
+        run: python3 scripts/validate-dxf-fixture.py samples/guiAndGfx/VectorDemo/sample.dxf
+
+      - name: Validate DXF round-trip numeric script (self-check on sample)
+        run: python3 scripts/validate-dxf-roundtrip.py samples/guiAndGfx/VectorDemo/sample.dxf samples/guiAndGfx/VectorDemo/sample.dxf

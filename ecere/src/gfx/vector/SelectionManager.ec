@@ -159,6 +159,7 @@ public class SelectionManager
             HatchEntity hatch = (HatchEntity)entity;
             return hatch.boundaryPointCount ? hatch.boundaryPointCount : 1;
          }
+         case entityDimension: return 4;
       }
       return 0;
    }
@@ -300,6 +301,19 @@ public class SelectionManager
                ConsiderSnap(hatch.seed, world, bestDistance, best, found);
             break;
          }
+         case entityDimension:
+         {
+            DimensionEntity dim = (DimensionEntity)entity;
+            VectorPoint dim1, dim2;
+            dim.ProjectDimPoints(dim1, dim2);
+            ConsiderSnap(dim.extLine1, world, bestDistance, best, found);
+            ConsiderSnap(dim.extLine2, world, bestDistance, best, found);
+            ConsiderSnap(dim1, world, bestDistance, best, found);
+            ConsiderSnap(dim2, world, bestDistance, best, found);
+            ConsiderSnap(MidPoint(dim1, dim2), world, bestDistance, best, found);
+            ConsiderSnap(dim.textMidPoint, world, bestDistance, best, found);
+            break;
+         }
       }
    }
 
@@ -390,6 +404,15 @@ public class SelectionManager
             }
             else
                AddGrip(points, index, hatch.seed);
+            break;
+         }
+         case entityDimension:
+         {
+            DimensionEntity dim = (DimensionEntity)entity;
+            AddGrip(points, index, dim.extLine1);
+            AddGrip(points, index, dim.extLine2);
+            AddGrip(points, index, dim.dimLinePoint);
+            AddGrip(points, index, dim.textMidPoint);
             break;
          }
       }
@@ -610,6 +633,25 @@ public class SelectionManager
             else
                return false;
             hatch.Touch();
+            break;
+         }
+         case entityDimension:
+         {
+            DimensionEntity dim = (DimensionEntity)entity;
+            if(gripIndex == 0)
+               dim.extLine1 = newPoint;
+            else if(gripIndex == 1)
+               dim.extLine2 = newPoint;
+            else if(gripIndex == 2)
+               dim.dimLinePoint = newPoint;
+            else if(gripIndex == 3)
+            {
+               dim.textMidPoint = newPoint;
+               dim.defPoint = newPoint;
+            }
+            else
+               return false;
+            dim.Touch();
             break;
          }
          default:

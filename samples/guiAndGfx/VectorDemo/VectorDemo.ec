@@ -47,6 +47,7 @@ class VectorDemo : Window
       document.CreateSpline(splinePoints, 4, 3, false, "OBJECTS");
       document.CreateText({ 20, 220, 0 }, { 20, 220, 0 }, "Hello", 12, "STANDARD", "ANNOTATION");
       document.CreateHatch({ 320, 150, 0 }, hatchBoundary, 4, "SOLID", "OBJECTS");
+      document.CreateDimension({ 400, 0, 0 }, { 500, 0, 0 }, { 450, 20, 0 }, { 450, 22, 0 }, "120", "ANNOTATION");
       document.RebuildSemanticDisplayLines();
    }
 
@@ -160,6 +161,7 @@ class VectorDemo : Window
          case entityInsert: return "INSERT";
          case entityLeader: return "LEADER";
          case entityHatch: return "HATCH";
+         case entityDimension: return "DIMENSION";
       }
       return "ENTITY";
    }

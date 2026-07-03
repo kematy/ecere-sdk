@@ -184,6 +184,40 @@ public class DXFWriter
       }
    }
 
+   void WriteDimension(File f, DimensionEntity entity)
+   {
+      WritePairString(f, 0, "DIMENSION");
+      WriteCommonProperties(f, entity);
+      WritePairDouble(f, 10, entity.defPoint.x);
+      WritePairDouble(f, 20, entity.defPoint.y);
+      if(!VectorIsZero(entity.defPoint.z, VECTOR_COORD_EPSILON))
+         WritePairDouble(f, 30, entity.defPoint.z);
+      WritePairDouble(f, 11, entity.textMidPoint.x);
+      WritePairDouble(f, 21, entity.textMidPoint.y);
+      if(!VectorIsZero(entity.textMidPoint.z, VECTOR_COORD_EPSILON))
+         WritePairDouble(f, 31, entity.textMidPoint.z);
+      WritePairDouble(f, 12, entity.dimLinePoint.x);
+      WritePairDouble(f, 22, entity.dimLinePoint.y);
+      if(!VectorIsZero(entity.dimLinePoint.z, VECTOR_COORD_EPSILON))
+         WritePairDouble(f, 32, entity.dimLinePoint.z);
+      WritePairDouble(f, 13, entity.extLine1.x);
+      WritePairDouble(f, 23, entity.extLine1.y);
+      if(!VectorIsZero(entity.extLine1.z, VECTOR_COORD_EPSILON))
+         WritePairDouble(f, 33, entity.extLine1.z);
+      WritePairDouble(f, 14, entity.extLine2.x);
+      WritePairDouble(f, 24, entity.extLine2.y);
+      if(!VectorIsZero(entity.extLine2.z, VECTOR_COORD_EPSILON))
+         WritePairDouble(f, 34, entity.extLine2.z);
+      if(entity.dimType)
+         WritePairInt(f, 70, entity.dimType);
+      else
+         WritePairInt(f, 70, 0);
+      if(entity.textHeight > 0)
+         WritePairDouble(f, 40, entity.textHeight);
+      if(entity.text && entity.text[0])
+         WritePairString(f, 1, entity.text);
+   }
+
    void WriteEntity(File f, SemanticEntity entity)
    {
       if(!entity)
@@ -201,6 +235,7 @@ public class DXFWriter
          case entityInsert: WriteInsert(f, (InsertEntity)entity); break;
          case entityLeader: WriteLeaderAsPolyline(f, (LeaderEntity)entity); break;
          case entityHatch: WriteHatch(f, (HatchEntity)entity); break;
+         case entityDimension: WriteDimension(f, (DimensionEntity)entity); break;
          default: break;
       }
    }

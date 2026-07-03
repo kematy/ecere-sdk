@@ -5,7 +5,8 @@ import "CADDocument"
 
 // Phase 2: ASCII DXF import into the semantic CAD model (CADDocument).
 // Supported entities: LINE, CIRCLE, ARC, ELLIPSE, LWPOLYLINE, POLYLINE/VERTEX,
-// TEXT, MTEXT, INSERT, BLOCK/ENDBLK (block definitions), HATCH (solid/polyline boundary).
+// TEXT, MTEXT, INSERT, BLOCK/ENDBLK (block definitions), HATCH (solid/polyline boundary),
+// DIMENSION (linear aligned, simplified).
 public class DXFReader
 {
    CADDocument document;
@@ -257,6 +258,28 @@ public class DXFReader
       }
    }
 
+   void FinalizeDimension(
+      double defX, double defY, double defZ,
+      double textX, double textY, double textZ,
+      double dimX, double dimY, double dimZ,
+      double ext1X, double ext1Y, double ext1Z,
+      double ext2X, double ext2Y, double ext2Z,
+      const char * textValue, double textHeight, int dimType)
+   {
+      DimensionEntity entity
+      {
+         defPoint = { defX, defY, defZ },
+         textMidPoint = { textX, textY, textZ },
+         dimLinePoint = { dimX, dimY, dimZ },
+         extLine1 = { ext1X, ext1Y, ext1Z },
+         extLine2 = { ext2X, ext2Y, ext2Z },
+         dimType = dimType,
+         textHeight = textHeight > 0 ? textHeight : 2.5
+      };
+      entity.SetText(textValue);
+      AddToTarget(entity);
+   }
+
    bool Load(CADDocument target, const char * fileName)
    {
       File f { };
@@ -275,6 +298,8 @@ public class DXFReader
       double bulge = 0;
       double pendingX = 0, pendingY = 0, pendingZ = 0;
       bool havePendingX = false;
+      double dimExt2X = 0, dimExt2Y = 0, dimExt2Z = 0;
+      int dimType = 0;
       int pairCount = 0;
 
       entityType[0] = 0;
@@ -314,6 +339,11 @@ public class DXFReader
                   FinishHatch();
                else if(!strcmp(entityType, "ENDBLK"))
                   EndBlock();
+               else if(!strcmp(entityType, "DIMENSION"))
+                  FinalizeDimension(
+                     x1, y1, z1, x2, y2, z2, cx, cy, cz,
+                     majorX, majorY, majorZ, dimExt2X, dimExt2Y, dimExt2Z,
+                     textValue, height, dimType);
                else
                   FinalizeEntity(entityType,
                      x1, y1, z1, x2, y2, z2,
@@ -348,6 +378,8 @@ public class DXFReader
             bulge = 0;
             polylineClosed = false;
             havePendingX = false;
+            dimExt2X = dimExt2Y = dimExt2Z = 0;
+            dimType = 0;
 
             if(!strcmp(value, "POLYLINE") || !strcmp(value, "LWPOLYLINE"))
             {
@@ -361,7 +393,7 @@ public class DXFReader
             }
             else if(!strcmp(value, "LINE") || !strcmp(value, "CIRCLE") || !strcmp(value, "ARC") ||
                     !strcmp(value, "ELLIPSE") || !strcmp(value, "TEXT") || !strcmp(value, "MTEXT") ||
-                    !strcmp(value, "INSERT") || !strcmp(value, "BLOCK"))
+                    !strcmp(value, "INSERT") || !strcmp(value, "BLOCK") || !strcmp(value, "DIMENSION"))
                ResetEntityDefaults();
             else if(!strcmp(value, "VERTEX"))
             {
@@ -437,10 +469,29 @@ public class DXFReader
                   bulge = 0;
                   havePendingX = true;
                }
+               else if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  x1 = ParseDouble(value);
                else
                   x1 = cx = ParseDouble(value);
                break;
-            case 11: x2 = majorX = ParseDouble(value); break;
+            case 11:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  x2 = ParseDouble(value);
+               else
+                  x2 = majorX = ParseDouble(value);
+               break;
+            case 12:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  cx = ParseDouble(value);
+               break;
+            case 13:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  majorX = ParseDouble(value);
+               break;
+            case 14:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  dimExt2X = ParseDouble(value);
+               break;
             case 20:
                if(inHatch)
                {
@@ -463,21 +514,59 @@ public class DXFReader
                   havePendingX = false;
                   bulge = 0;
                }
+               else if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  y1 = ParseDouble(value);
                else
                   y1 = cy = ParseDouble(value);
                break;
-            case 21: y2 = majorY = ParseDouble(value); break;
+            case 21:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  y2 = ParseDouble(value);
+               else
+                  y2 = majorY = ParseDouble(value);
+               break;
+            case 22:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  cy = ParseDouble(value);
+               break;
+            case 23:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  majorY = ParseDouble(value);
+               break;
+            case 24:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  dimExt2Y = ParseDouble(value);
+               break;
             case 30:
                if(inHatch && hatchCollectBoundary && hatchHavePendingX)
                   hatchPendingZ = ParseDouble(value);
                else if(inPolyline && havePendingX)
                   pendingZ = ParseDouble(value);
+               else if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  z1 = ParseDouble(value);
                else
                   z1 = cz = ParseDouble(value);
                break;
-            case 31: z2 = majorZ = ParseDouble(value); break;
+            case 31:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  z2 = ParseDouble(value);
+               else
+                  z2 = majorZ = ParseDouble(value);
+               break;
+            case 32:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  cz = ParseDouble(value);
+               break;
+            case 33:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  majorZ = ParseDouble(value);
+               break;
+            case 34:
+               if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  dimExt2Z = ParseDouble(value);
+               break;
             case 40:
-               if(!strcmp(entityType, "TEXT") || !strcmp(entityType, "MTEXT"))
+               if(!strcmp(entityType, "TEXT") || !strcmp(entityType, "MTEXT") || !strcmp(entityType, "DIMENSION"))
                   height = ParseDouble(value);
                else
                   radius = ParseDouble(value);
@@ -500,6 +589,8 @@ public class DXFReader
             case 70:
                if(inHatch)
                   hatchEntity.solid = atoi(value) != 0;
+               else if(entityType[0] && !strcmp(entityType, "DIMENSION"))
+                  dimType = atoi(value);
                else
                {
                   polylineClosed = (atoi(value) & 1) != 0;
@@ -522,6 +613,11 @@ public class DXFReader
             FinishHatch();
          else if(!strcmp(entityType, "ENDBLK"))
             EndBlock();
+         else if(!strcmp(entityType, "DIMENSION"))
+            FinalizeDimension(
+               x1, y1, z1, x2, y2, z2, cx, cy, cz,
+               majorX, majorY, majorZ, dimExt2X, dimExt2Y, dimExt2Z,
+               textValue, height, dimType);
          else
             FinalizeEntity(entityType,
                x1, y1, z1, x2, y2, z2,

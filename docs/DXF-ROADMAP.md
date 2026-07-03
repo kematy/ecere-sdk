@@ -54,7 +54,8 @@ python3 scripts/validate-dxf-roundtrip.py sample.dxf roundtrip.dxf
 
 ### Phase 5 — Advanced entities (partial)
 - HATCH fill import/export (solid, polyline boundary)
-- DIMENSION / LEADER DXF annotation
+- DIMENSION linear import/export (extension lines + dimension line, simplified horizontal)
+- LEADER DXF annotation (exported as polyline)
 - SPLINE from fit/control points
 - Binary DXF and DWG conversion (external tool or library)
 
@@ -87,7 +88,7 @@ On Windows, open `VectorDemo.epj` in the Ecere IDE or use the equivalent
 - Constraint editing
 
 ### Phase 5 — Advanced entities (remaining)
-- DIMENSION annotation
+- Full DIMENSION types (angular, radial, ordinate)
 - Full HATCH pattern definitions and associative boundaries
 - SPLINE fit points from DXF
 - Binary DXF and DWG conversion (external tool or library)

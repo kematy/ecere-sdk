@@ -14,7 +14,8 @@ public enum SemanticEntityType
    entityText,
    entityInsert,
    entityLeader,
-   entityHatch
+   entityHatch,
+   entityDimension
 };
 
 public class SemanticEntity
@@ -504,6 +505,61 @@ public:
       DisplayLine display { ownerEntityId = id, kind = kind, implementation = polyline, closed = false, cachedVersion = version };
       display.SetPoints(points, pointCount);
       return display;
+   }
+};
+
+public class DimensionEntity : SemanticEntity
+{
+public:
+   VectorPoint defPoint;
+   VectorPoint textMidPoint;
+   VectorPoint dimLinePoint;
+   VectorPoint extLine1;
+   VectorPoint extLine2;
+   char * text;
+   int dimType;
+   double textHeight;
+
+   DimensionEntity()
+   {
+      type = entityDimension;
+      textHeight = 2.5;
+   }
+
+   ~DimensionEntity()
+   {
+      delete text;
+   }
+
+   void SetText(const char * value)
+   {
+      delete text;
+      text = value && value[0] ? CopyString(value) : null;
+      Touch();
+   }
+
+   void ProjectDimPoints(VectorPoint & dim1, VectorPoint & dim2)
+   {
+      dim1 = { extLine1.x, dimLinePoint.y, extLine1.z };
+      dim2 = { extLine2.x, dimLinePoint.y, extLine2.z };
+   }
+
+   DisplayLine CreateDisplayLine(DisplayLineKind kind)
+   {
+      VectorPoint dim1, dim2;
+      VectorPoint points[2];
+
+      ProjectDimPoints(dim1, dim2);
+      points[0] = dim1;
+      points[1] = dim2;
+      DisplayLine display { ownerEntityId = id, kind = kind, implementation = polyline, closed = false, cachedVersion = version };
+      display.SetPoints(points, 2);
+      return display;
+   }
+
+   DisplayLineKind GetFamily()
+   {
+      return industrial;
    }
 };
 

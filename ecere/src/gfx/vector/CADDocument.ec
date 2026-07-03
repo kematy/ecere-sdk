@@ -244,6 +244,52 @@ public:
       return added;
    }
 
+   bool AddDimensionDisplayLines(DimensionEntity dim, DisplayLineKind kind)
+   {
+      VectorPoint dim1, dim2;
+      VectorPoint ext1Line[2], ext2Line[2], dimLine[2];
+
+      if(!dim)
+         return false;
+
+      dim.ProjectDimPoints(dim1, dim2);
+      ext1Line[0] = dim.extLine1;
+      ext1Line[1] = dim1;
+      ext2Line[0] = dim.extLine2;
+      ext2Line[1] = dim2;
+      dimLine[0] = dim1;
+      dimLine[1] = dim2;
+
+      {
+         DisplayLine display
+         {
+            ownerEntityId = dim.id, kind = kind, implementation = polyline,
+            closed = false, cachedVersion = dim.version
+         };
+         display.SetPoints(ext1Line, 2);
+         displayLines.Add(display);
+      }
+      {
+         DisplayLine display
+         {
+            ownerEntityId = dim.id, kind = kind, implementation = polyline,
+            closed = false, cachedVersion = dim.version
+         };
+         display.SetPoints(ext2Line, 2);
+         displayLines.Add(display);
+      }
+      {
+         DisplayLine display
+         {
+            ownerEntityId = dim.id, kind = kind, implementation = polyline,
+            closed = false, cachedVersion = dim.version
+         };
+         display.SetPoints(dimLine, 2);
+         displayLines.Add(display);
+      }
+      return true;
+   }
+
    bool PolylineHasSegmentDisplayProperties(PolylineEntity entity)
    {
       uint c;
@@ -449,6 +495,8 @@ public:
             continue;
          else if(entity && entity.type == entityHatch && AddHatchDisplayLines((HatchEntity)entity))
             continue;
+         else if(entity && entity.type == entityDimension && AddDimensionDisplayLines((DimensionEntity)entity, useKind))
+            continue;
          else if(entity && entity.type == entityPolyline && AddPolylineDisplayLines((PolylineEntity)entity, useKind))
             continue;
          else if(entity && entity.type == entitySpline && AddSplineDisplayLine((SplineEntity)entity, useKind))
@@ -588,5 +636,24 @@ public:
          entity.layer = CopyString(layer);
       }
       return (HatchEntity)AddEntity(entity);
+   }
+
+   DimensionEntity CreateDimension(VectorPoint extLine1, VectorPoint extLine2, VectorPoint dimLinePoint, VectorPoint textMidPoint, const char * text, const char * layer)
+   {
+      DimensionEntity entity
+      {
+         extLine1 = extLine1,
+         extLine2 = extLine2,
+         dimLinePoint = dimLinePoint,
+         textMidPoint = textMidPoint,
+         defPoint = textMidPoint
+      };
+      entity.SetText(text);
+      if(layer)
+      {
+         delete entity.layer;
+         entity.layer = CopyString(layer);
+      }
+      return (DimensionEntity)AddEntity(entity);
    }
 };
